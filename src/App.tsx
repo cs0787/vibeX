@@ -1,87 +1,372 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Bot, Braces, BriefcaseBusiness, Building2, CheckCircle2, ChevronRight, CircleAlert, CircleCheck, ClipboardList, Code2, Download, FileText, FlaskConical, LayoutDashboard, Lightbulb, LoaderCircle, LogOut, Play, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TerminalSquare, UserRound, Users } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { vibeXApi } from './services/api';
+import { 
+  Terminal, Bot, Play, CheckCircle2, XCircle, Send, 
+  BarChart3, UserCheck, ShieldCheck, Info, Sparkles, ArrowRight,
+  ExternalLink, Code2, AlertTriangle
+} from 'lucide-react';
 
-const API = "http://localhost:8787/api";
-const starterCode = `function summarizeExpenses(expenses) {
-  const byCategory = {};
-  let total = 0;
-  for (const expense of expenses) {
-    total += expense.amount;
-    // This starter has a deliberate bug for you to find.
-    byCategory[expense.category] = expense.amount;
-  }
-  return { total, byCategory };
-}`;
-type Role = "candidate" | "recruiter";
-type Job = { id: string; title: string; company: string; description: string; skills: string[]; recruiterName: string; status: "open" | "closed"; createdAt: string };
-type EventItem = { id: string; type: string; timestamp: string; payload: Record<string, any> };
-type Report = { generatedAt: string; technicalCorrectness: number | null; checksPassed: number; checksTotal: number; dimensions: { name: string; status: string; evidence: string | null }[]; limitations: string[]; nextSteps: string[]; candidateFeedback: string };
-type Session = { id: string; candidateName: string; jobId?: string; jobTitle?: string; code: string; events: EventItem[]; submitted: boolean; latestReport?: Report };
-type TestResult = { name: string; passed: boolean; expected: string; actual: string };
-type TestRun = { id?: string; passed: number; total: number; results: TestResult[] };
-type Application = { id: string; candidateName: string; createdAt: string; eventCount: number; latestReport?: Report };
+export default function App() {
+  const [view, setView] = useState<'workspace' | 'recruiter' | 'candidate'>('workspace');
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  
+  // Platform Session State
+  const [sessionId, setSessionId] = useState('');
+  const [task, setTask] = useState<any>(null);
+  const [code, setCode] = useState('');
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [isExecuting, setIsExecuting] = useState(false);
 
-const tests = [
-  { name: "Returns a useful shape for no expenses", input: [], expected: { total: 0, byCategory: {} } },
-  { name: "Adds separate expense categories", input: [{ amount: 120, category: "food" }, { amount: 80, category: "travel" }], expected: { total: 200, byCategory: { food: 120, travel: 80 } } },
-  { name: "Accumulates repeated categories", input: [{ amount: 40, category: "food" }, { amount: 35, category: "food" }, { amount: 100, category: "books" }], expected: { total: 175, byCategory: { food: 75, books: 100 } } }
-];
-const pretty = (value: unknown) => JSON.stringify(value);
+  // Socratic AI Coach
+  const [promptInput, setPromptInput] = useState('');
+  const [chatLog, setChatLog] = useState<{ sender: 'user' | 'coach'; text: string }[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
 
-function runInWorker(source: string): Promise<TestResult[]> {
-  const sourceCode = `const norm=v=>Array.isArray(v)?v.map(norm):v&&typeof v==='object'?Object.keys(v).sort().reduce((o,k)=>{o[k]=norm(v[k]);return o},{}):v;self.onmessage=({data})=>{let results;try{const fn=new Function('"use strict";\\n'+data.source+'\\n;return typeof summarizeExpenses==="function"?summarizeExpenses:null;')();if(!fn)throw Error('Define summarizeExpenses.');results=data.tests.map(t=>{try{const actual=fn(t.input);return {name:t.name,passed:JSON.stringify(norm(actual))===JSON.stringify(norm(t.expected)),expected:JSON.stringify(t.expected),actual:JSON.stringify(actual)}}catch(e){return {name:t.name,passed:false,expected:JSON.stringify(t.expected),actual:'Error: '+(e.message||String(e))}})}catch(e){results=data.tests.map(t=>({name:t.name,passed:false,expected:JSON.stringify(t.expected),actual:'Error: '+(e.message||String(e))}))}self.postMessage({results})}`;
-  return new Promise(resolve => { const worker = new Worker(URL.createObjectURL(new Blob([sourceCode], { type: "text/javascript" }))); const timeout = window.setTimeout(() => { worker.terminate(); resolve(tests.map(test => ({ name: test.name, passed: false, expected: pretty(test.expected), actual: "Timed out after 2 seconds" }))); }, 2000); worker.onmessage = ({ data }) => { window.clearTimeout(timeout); worker.terminate(); resolve(data.results); }; worker.onerror = () => { window.clearTimeout(timeout); worker.terminate(); resolve(tests.map(test => ({ name: test.name, passed: false, expected: pretty(test.expected), actual: "Worker could not run this code" }))); }; worker.postMessage({ source, tests }); });
+  // Assessment Reports
+  const [recruiterReport, setRecruiterReport] = useState<any>(null);
+  const [candidateFeedback, setCandidateFeedback] = useState<any>(null);
+
+  useEffect(() => {
+    vibeXApi.initSession("Chetan Shakhapure").then(res => {
+      setSessionId(res.sessionId);
+      setTask(res.task);
+      setCode(res.task.starterCode);
+    });
+  }, []);
+
+  const handleRunTests = async () => {
+    if (!task) return;
+    setIsExecuting(true);
+    const data = await vibeXApi.runTests(sessionId, task.id, code);
+    setTestResults(data.results);
+    setIsExecuting(false);
+  };
+
+  const handleAskCoach = async (explicitPrompt?: string) => {
+    const q = explicitPrompt || promptInput;
+    if (!q.trim() || !task) return;
+
+    const failed = testResults.filter(t => !t.passed).map(t => t.id);
+    setChatLog(prev => [...prev, { sender: 'user', text: q }]);
+    setPromptInput('');
+    setIsThinking(true);
+
+    const data = await vibeXApi.askCoach(sessionId, q, code, failed);
+    setChatLog(prev => [...prev, { sender: 'coach', text: data.guidance }]);
+    setIsThinking(false);
+  };
+
+  const handleSubmitAssessment = async () => {
+    if (!task) return;
+    const res = await vibeXApi.submitAssessment(sessionId, task.id, code);
+    setRecruiterReport(res.recruiterReport);
+    setCandidateFeedback(res.candidateFeedback);
+    setView('recruiter');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+      {/* Onboarding & Transparency Modal */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 rounded-xl bg-indigo-600 text-white font-black text-base">vX</div>
+              <div>
+                <h3 className="text-base font-bold text-white">Welcome to vibeX Assessment</h3>
+                <p className="text-xs text-slate-400">iMocha AI-Era Skills Intelligence Platform</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+              <div className="font-semibold text-slate-200 flex items-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Fairness & Transparency Guarantee</span>
+              </div>
+              <p>• You have access to a built-in Socratic AI Assistant to brainstorm and debug.</p>
+              <p>• <strong>Prompt count & speed are NOT scored</strong>. You will not be penalized for asking questions.</p>
+              <p>• Evaluation focuses on verified test outcomes, critical thinking, and edge-case handling.</p>
+            </div>
+
+            <button 
+              onClick={() => setShowOnboarding(false)}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-lg shadow-indigo-900/40">
+              Enter Assessment Workspace
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Navbar */}
+      <header className="h-14 border-b border-slate-800 bg-slate-900/60 backdrop-blur px-6 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <span className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black px-2.5 py-1 rounded-lg text-xs tracking-wider">vibeX</span>
+          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">The AI-Era Assessment Engine</span>
+        </div>
+
+        {/* View Switchers */}
+        <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+          <button 
+            onClick={() => setView('workspace')}
+            className={`px-3 py-1.5 rounded-lg transition ${view === 'workspace' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+            Candidate Workspace
+          </button>
+          <button 
+            onClick={() => recruiterReport ? setView('recruiter') : handleSubmitAssessment()}
+            className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${view === 'recruiter' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Recruiter Report</span>
+          </button>
+          <button 
+            onClick={() => candidateFeedback ? setView('candidate') : handleSubmitAssessment()}
+            className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${view === 'candidate' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Candidate Growth View</span>
+          </button>
+        </div>
+
+        <button 
+          onClick={handleSubmitAssessment}
+          className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-md shadow-emerald-950">
+          <span>Submit Assessment</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </header>
+
+      {/* VIEW 1: Candidate Workspace */}
+      {view === 'workspace' && (
+        <div className="flex-1 grid grid-cols-12 overflow-hidden">
+          {/* Left: Task Specification Drawer */}
+          <div className="col-span-3 border-r border-slate-800 p-5 overflow-y-auto bg-slate-900/30">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-400">Benchmark Task</span>
+            <h2 className="text-sm font-bold text-white mt-1">{task?.title || "Loading..."}</h2>
+            <div className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800">
+              {task?.roleLevel}
+            </div>
+
+            <div className="mt-4 text-xs text-slate-300 leading-relaxed whitespace-pre-line font-mono bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+              {task?.description}
+            </div>
+          </div>
+
+          {/* Middle: Code Editor & Sandboxed Test Results */}
+          <div className="col-span-6 flex flex-col border-r border-slate-800 bg-slate-950">
+            <div className="h-10 border-b border-slate-800 px-4 flex items-center justify-between bg-slate-900/40">
+              <span className="text-xs font-mono text-slate-400 flex items-center space-x-1.5">
+                <Code2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>processor.js</span>
+              </span>
+              <button 
+                onClick={handleRunTests}
+                disabled={isExecuting}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition">
+                <Play className="w-3 h-3 fill-current" />
+                <span>{isExecuting ? "Executing Sandbox..." : "Run Tests"}</span>
+              </button>
+            </div>
+
+            {/* Code Input */}
+            <textarea 
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              className="flex-1 bg-transparent p-4 font-mono text-xs focus:outline-none resize-none text-slate-200 leading-relaxed border-none selection:bg-indigo-800"
+              spellCheck={false}
+            />
+
+            {/* Deterministic Test Results Bar */}
+            <div className="h-44 border-t border-slate-800 bg-slate-900/50 p-3 overflow-y-auto">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-300 flex items-center space-x-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Deterministic Assertion Sandbox</span>
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {testResults.length > 0 && `${testResults.filter(t => t.passed).length} / ${testResults.length} Passed`}
+                </span>
+              </div>
+
+              {testResults.length === 0 ? (
+                <div className="text-xs text-slate-500 italic mt-4 text-center">Execute your code to inspect unit and boundary assertions.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {testResults.map(test => (
+                    <div key={test.id} className={`p-2 rounded-lg border text-xs flex items-center justify-between ${test.passed ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-300' : 'bg-rose-950/20 border-rose-800/40 text-rose-300'}`}>
+                      <div className="flex items-center space-x-2">
+                        {test.passed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />}
+                        <span className="font-medium">{test.description}</span>
+                      </div>
+                      {!test.passed && <span className="text-[10px] font-mono text-rose-400">{test.actual}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Socratic AI Coach */}
+          <div className="col-span-3 flex flex-col bg-slate-900/20">
+            <div className="h-10 border-b border-slate-800 px-4 flex items-center space-x-2 bg-slate-900/40">
+              <Bot className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs font-bold text-slate-200">Socratic AI Coach</span>
+            </div>
+
+            {/* Quick Socratic Question Chips */}
+            <div className="p-2 border-b border-slate-800 flex flex-wrap gap-1">
+              <button onClick={() => handleAskCoach("How should I reject corrupt or incomplete packets in parseEvent?")} className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300 transition">
+                Hint: Packet Validation
+              </button>
+              <button onClick={() => handleAskCoach("Why does floating point math fail on computeWindowAverages?")} className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300 transition">
+                Hint: Float Rounding
+              </button>
+            </div>
+
+            {/* Chat History */}
+            <div className="flex-1 p-3 overflow-y-auto space-y-3">
+              {chatLog.length === 0 && (
+                <div className="text-xs text-slate-500 italic text-center mt-6">
+                  Stuck on an edge case or assertion? Ask the coach for structural hints.
+                </div>
+              )}
+              {chatLog.map((msg, i) => (
+                <div key={i} className={`p-2.5 rounded-xl text-xs leading-relaxed ${msg.sender === 'user' ? 'bg-indigo-950 border border-indigo-800 text-indigo-200 ml-4' : 'bg-slate-800/80 border border-slate-700 text-slate-200 mr-4'}`}>
+                  {msg.text}
+                </div>
+              ))}
+              {isThinking && <div className="text-xs text-indigo-400 italic">Coach analyzing session state...</div>}
+            </div>
+
+            {/* Input Form */}
+            <div className="p-3 border-t border-slate-800 flex items-center space-x-2">
+              <input 
+                type="text"
+                value={promptInput}
+                onChange={e => setPromptInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAskCoach()}
+                placeholder="Ask coach for guidance..."
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-600"
+              />
+              <button onClick={() => handleAskCoach()} className="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-lg">
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: Recruiter Evidence-Backed Skill Report */}
+      {view === 'recruiter' && recruiterReport && (
+        <div className="flex-1 p-8 max-w-5xl mx-auto w-full space-y-6 overflow-y-auto">
+          {/* Executive Header */}
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center justify-between shadow-xl">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Recruiter Diagnostic Dossier</span>
+                <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Evidence Anchored</span>
+              </div>
+              <h1 className="text-2xl font-black text-white mt-1">{recruiterReport.candidateName}</h1>
+              <p className="text-xs text-slate-400 mt-0.5">Role Benchmark: {recruiterReport.taskTitle} • Total Duration: {recruiterReport.totalTimeMinutes} mins</p>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] text-slate-400 uppercase font-semibold">Evaluation Verdict</div>
+              <div className="text-base font-bold text-emerald-400">{recruiterReport.executiveSummary}</div>
+            </div>
+          </div>
+
+          {/* Metric Tiles */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+              <div className="text-xs text-slate-400 font-semibold">Deterministic Pass Rate</div>
+              <div className="text-3xl font-black text-indigo-400 mt-1">{recruiterReport.metrics.testPassPercentage}%</div>
+              <div className="text-[11px] text-slate-500 mt-1">Grounded in unit assertions</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+              <div className="text-xs text-slate-400 font-semibold">AI Fluency & Critical Thinking</div>
+              <div className="text-3xl font-black text-emerald-400 mt-1">{recruiterReport.metrics.aiVerificationScore}%</div>
+              <div className="text-[11px] text-slate-500 mt-1">Evaluates contextual intent</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+              <div className="text-xs text-slate-400 font-semibold">Verification Velocity</div>
+              <div className="text-3xl font-black text-purple-400 mt-1">{recruiterReport.metrics.debuggingEfficiencyScore}%</div>
+              <div className="text-[11px] text-slate-500 mt-1">Failure-to-fix resolution loops</div>
+            </div>
+          </div>
+
+          {/* Evidence Cards */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-200">Inspectable Evidence Chains</h3>
+            {recruiterReport.evidenceFindings.map((finding: any) => (
+              <div key={finding.id} className="bg-slate-900/70 border border-slate-800 p-5 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">{finding.dimension}</span>
+                    <span className="text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">{finding.status}</span>
+                  </div>
+                  <span className="text-[10px] font-medium text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Confidence: {finding.confidenceRating}</span>
+                </div>
+                <p className="text-xs font-semibold text-slate-200">{finding.observation}</p>
+                <p className="text-xs text-slate-400">{finding.interpretation}</p>
+
+                {/* Event Audit Trail */}
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 space-y-1.5">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Anchored Telemetry Trail:</div>
+                  {finding.evidenceTrail.map((ev: any, idx: number) => (
+                    <div key={idx} className="text-xs font-mono text-slate-300 flex items-center space-x-2">
+                      <span className="text-indigo-400">[{ev.eventId}]</span>
+                      <span className="text-slate-400">({ev.action}):</span>
+                      <span>{ev.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Fairness Guarantee */}
+          <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-xl text-xs text-slate-400 flex items-start space-x-3">
+            <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-slate-200">Fairness & Transparency Guardrail</strong>: {recruiterReport.fairnessAudit.explanation}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 3: Candidate Personal Growth View */}
+      {view === 'candidate' && candidateFeedback && (
+        <div className="flex-1 p-8 max-w-3xl mx-auto w-full space-y-6 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
+            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Candidate Growth Dossier</span>
+            <h1 className="text-2xl font-black text-white mt-1">Hello, {candidateFeedback.candidateName}</h1>
+            <p className="text-sm text-slate-300 mt-2 leading-relaxed">{candidateFeedback.headline}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-2">
+              <h3 className="text-sm font-bold text-emerald-400 flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Verified Strengths</span>
+              </h3>
+              <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+                {candidateFeedback.verifiedStrengths.map((str: string, i: number) => (
+                  <li key={i}>{str}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-2">
+              <h3 className="text-sm font-bold text-amber-400 flex items-center space-x-1.5">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Actionable Growth Areas</span>
+              </h3>
+              <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+                {candidateFeedback.actionableGrowthAreas.map((area: string, i: number) => (
+                  <li key={i}>{area}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
-
-function App() {
-  const [signupStep, setSignupStep] = useState<"signup" | "role">("signup");
-  const [authMode, setAuthMode] = useState<"register" | "login">("register");
-  const [role, setRole] = useState<Role | null>(null); const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [csrfToken, setCsrfToken] = useState("");
-  const [page, setPage] = useState<"dashboard" | "workspace" | "timeline" | "report">("dashboard");
-  const [jobs, setJobs] = useState<Job[]>([]); const [selectedJob, setSelectedJob] = useState<Job | null>(null); const [applications, setApplications] = useState<Application[]>([]);
-  const [session, setSession] = useState<Session | null>(null); const [code, setCode] = useState(starterCode); const [plan, setPlan] = useState(""); const [prompt, setPrompt] = useState("");
-  const [chat, setChat] = useState([{ role: "assistant", text: "I’m your coach, not a solution generator. Tell me what you expect for repeated categories and I’ll help you reason it through.", mode: "" }]);
-  const [testRun, setTestRun] = useState<TestRun | null>(null); const [report, setReport] = useState<Report | null>(null); const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState({ online: false, storage: "checking", ai: "checking" }); const [notice, setNotice] = useState("Choose a role to begin.");
-  const [jobForm, setJobForm] = useState({ title: "Junior Frontend Developer", company: "Northstar Labs", description: "Help us build thoughtful, accessible web experiences. Complete the short assessment to show how you plan, test and verify a small JavaScript task.", skills: "JavaScript, React, Problem solving" });
-  const progress = useMemo(() => testRun ? Math.round(testRun.passed / testRun.total * 100) : 0, [testRun]);
-  const activeReport = report || session?.latestReport; const events = session?.events || [];
-  const displayName = name.trim() || (role === "recruiter" ? "Hiring team" : "Candidate");
-
-  async function request(path: string, options: RequestInit = {}) {
-    const method = (options.method || "GET").toUpperCase();
-    const headers = new Headers(options.headers);
-    if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-    if (method !== "GET" && csrfToken) headers.set("X-CSRF-Token", csrfToken);
-    return fetch(`${API}${path}`, { ...options, headers, credentials: "include" });
-  }
-  function applyUser(user: { name: string; email: string; role: Role; csrfToken: string }) { setName(user.name); setEmail(user.email); setRole(user.role); setCsrfToken(user.csrfToken); setPage("dashboard"); }
-  useEffect(() => { fetch(`${API}/health`).then(r => r.json()).then(data => setStatus({ online: true, storage: data.storage, ai: data.ai })).catch(() => setStatus({ online: false, storage: "offline", ai: "offline" })); fetch(`${API}/auth/me`, { credentials: "include" }).then(r => r.ok ? r.json() : null).then(data => data?.user && applyUser(data.user)).catch(() => undefined); }, []);
-  useEffect(() => { if (role) loadJobs(); }, [role]);
-  async function loadJobs() { try { const r = await request("/jobs"); if (r.ok) setJobs(await r.json()); } catch { setNotice("Could not load open roles. Check the API connection."); } }
-  async function refreshSession(id = session?.id) { if (!id) return; const r = await request(`/sessions/${id}`); if (r.ok) setSession(await r.json()); }
-  async function logEvent(type: string, payload: Record<string, unknown> = {}) { if (!session) return; await request(`/sessions/${session.id}/events`, { method: "POST", body: JSON.stringify({ type, payload, code }) }); await refreshSession(); }
-  async function register(selectedRole: Role) { setBusy(true); try { const r = await request("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password, role: selectedRole }) }); const data = await r.json(); if (!r.ok) throw new Error(data.error); applyUser(data.user); setNotice(selectedRole === "recruiter" ? "Account secured. Post a role, then review submitted assessment evidence here." : "Account secured. Explore open roles and begin an assessment when ready."); } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create account."); } finally { setBusy(false); } }
-  async function login() { setBusy(true); try { const r = await request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); const data = await r.json(); if (!r.ok) throw new Error(data.error); applyUser(data.user); setNotice("Signed in securely."); } catch (error) { setNotice(error instanceof Error ? error.message : "Could not sign in."); } finally { setBusy(false); } }
-  async function signOut() { try { await request("/auth/logout", { method: "POST" }); } finally { setRole(null); setCsrfToken(""); setSignupStep("signup"); setAuthMode("register"); setPage("dashboard"); setSession(null); setSelectedJob(null); setReport(null); setTestRun(null); setName(""); setEmail(""); setPassword(""); } }
-  async function createJob() { setBusy(true); try { const r = await request("/jobs", { method: "POST", body: JSON.stringify({ ...jobForm, skills: jobForm.skills.split(",").map(skill => skill.trim()).filter(Boolean) }) }); const data = await r.json(); if (!r.ok) throw new Error(data.error); setJobs(items => [data, ...items]); setSelectedJob(data); setJobForm({ title: "", company: "", description: "", skills: "" }); setNotice("Role posted. Candidates can now take its assessment."); } catch (error) { setNotice(error instanceof Error ? error.message : "Could not post role."); } finally { setBusy(false); } }
-  async function viewApplications(job: Job) { setSelectedJob(job); setBusy(true); try { const r = await request(`/jobs/${job.id}/applications`); const data = await r.json(); if (!r.ok) throw new Error(data.error); setApplications(data.applications); } catch { setNotice("Could not load applications."); } finally { setBusy(false); } }
-  async function beginAssessment(job: Job) { setBusy(true); try { const r = await request("/sessions", { method: "POST", body: JSON.stringify({ code, jobId: job.id }) }); const created = await r.json(); if (!r.ok) throw new Error(created.error); setSession(created); setSelectedJob(job); await request(`/sessions/${created.id}/events`, { method: "POST", body: JSON.stringify({ type: "task_opened", payload: { task: "Student Expense Insights", role: job.title } }) }); await refreshSession(created.id); setPage("workspace"); setNotice(`Assessment started for ${job.title}. The task opening was recorded.`); } catch (error) { setNotice(error instanceof Error ? error.message : "Could not start the assessment."); } finally { setBusy(false); } }
-  async function savePlan() { if (!plan.trim()) return; try { await logEvent("plan_submitted", { plan: plan.trim() }); setNotice("Planning note saved as reviewable evidence."); } catch { setNotice("Could not save the planning note."); } }
-  async function runTests() { if (!session) return; setBusy(true); try { const results = await runInWorker(code); const r = await request(`/sessions/${session.id}/test-runs`, { method: "POST", body: JSON.stringify({ code, results }) }); const data = await r.json(); if (!r.ok) throw new Error(); setTestRun(data); await refreshSession(); setNotice(`${data.passed}/${data.total} visible tests passed.`); } catch { setNotice("Test results could not be saved."); } finally { setBusy(false); } }
-  async function askCoach() { if (!session || !prompt.trim()) return; const question = prompt.trim(); setPrompt(""); setChat(items => [...items, { role: "user", text: question, mode: "" }]); setBusy(true); try { const r = await request(`/sessions/${session.id}/coach`, { method: "POST", body: JSON.stringify({ prompt: question, code }) }); const data = await r.json(); if (!r.ok) throw new Error(); setChat(items => [...items, { role: "assistant", text: data.answer, mode: data.mode }]); await refreshSession(); } catch { setChat(items => [...items, { role: "assistant", text: "The coach is unavailable. Check NVIDIA NIM configuration and try again.", mode: "" }]); } finally { setBusy(false); } }
-  async function submit() { if (!session) return; setBusy(true); try { const r = await request(`/sessions/${session.id}/submit`, { method: "POST", body: JSON.stringify({ code }) }); const data = await r.json(); if (!r.ok) throw new Error(); setReport(data.report); await refreshSession(); setPage("report"); setNotice("Assessment submitted. The recruiter can now view and download its report."); } catch { setNotice("Submission failed."); } finally { setBusy(false); } }
-  const eventLabel = (type: string) => ({ task_opened: "Task opened", plan_submitted: "Plan recorded", ai_interaction: "AI coach interaction", test_run: "Browser test run", submission: "Assessment submitted" }[type] || type.replace(/_/g, " "));
-
-  if (!role) return <div className="auth-shell"><div className="auth-card"><div className="brand auth-brand"><span className="brand-orb"><Sparkles size={18} /></span><span>vibe<span>proof</span></span></div>{signupStep === "signup" ? <><p className="kicker">SECURE AI-ERA ASSESSMENT</p><h1>{authMode === "register" ? "Create your account" : "Welcome back"}</h1><p>{authMode === "register" ? "Your account is secured with a hashed password and an HTTP-only session." : "Sign in to access your role-specific workspace."}</p>{authMode === "register" && <label>Name<input value={name} onChange={e => setName(e.target.value)} placeholder="Your full name" autoComplete="name" /></label>}<label>Email<input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" autoComplete="email" /></label><label>Password<input value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 10 characters" type="password" autoComplete={authMode === "register" ? "new-password" : "current-password"} /></label><button className="primary auth-button" onClick={authMode === "register" ? () => setSignupStep("role") : login} disabled={busy || !email.trim() || password.length < 10 || (authMode === "register" && !name.trim())}>{busy ? <LoaderCircle className="spin" size={15} /> : null}{authMode === "register" ? "Continue" : "Sign in"} <ArrowRight size={15} /></button><button className="text-button" onClick={() => { setAuthMode(authMode === "register" ? "login" : "register"); setSignupStep("signup"); }}>{authMode === "register" ? "Already have an account? Sign in" : "Need an account? Create one"}</button></> : <><p className="kicker">ACCOUNT ROLE</p><h1>How will you use VibeProof?</h1><p>Your role controls which records you can create and view.</p><div className="role-options"><button onClick={() => register("candidate")} disabled={busy}><span className="role-icon"><UserRound size={22} /></span><b>I’m a candidate</b><small>Explore roles, take an assessment and view your feedback.</small><ChevronRight size={17} /></button><button onClick={() => register("recruiter")} disabled={busy}><span className="role-icon recruiter"><BriefcaseBusiness size={22} /></span><b>I’m a recruiter</b><small>Post roles, review evidence and download reports.</small><ChevronRight size={17} /></button></div><button className="text-button" onClick={() => setSignupStep("signup")}>Back to account details</button></>}<p className="auth-notice">{notice}</p></div></div>;
-
-  const candidateDashboard = <section className="dashboard"><div className="dashboard-hero"><div><p className="kicker">CANDIDATE DASHBOARD</p><h2>Find a role. Show how you work.</h2><p>Every assessment combines the code result with transparent evidence of planning, testing and AI collaboration.</p></div><div className="hero-icon"><BriefcaseBusiness size={28} /></div></div><div className="section-title"><div><p className="kicker">OPEN OPPORTUNITIES</p><h3>Roles accepting assessments</h3></div><span>{jobs.length} open</span></div><div className="job-grid">{jobs.length ? jobs.map(job => <article className="job-card" key={job.id}><div className="job-company"><span><Building2 size={14} /> {job.company}</span><small>Posted {new Date(job.createdAt).toLocaleDateString()}</small></div><h3>{job.title}</h3><p>{job.description}</p><div className="skill-list">{job.skills.map(skill => <span key={skill}>{skill}</span>)}</div><button className="primary" onClick={() => beginAssessment(job)} disabled={busy}>Take assessment <ArrowRight size={15} /></button></article>) : <div className="empty-page"><BriefcaseBusiness size={28} /><b>No open roles yet</b><span>Ask a recruiter to post a role, then refresh this dashboard.</span><button className="subtle" onClick={loadJobs}>Refresh roles</button></div>}</div></section>;
-  const recruiterDashboard = <section className="dashboard recruiter-dashboard"><div className="dashboard-hero recruiter-hero"><div><p className="kicker">RECRUITER DASHBOARD</p><h2>Hire with evidence, not guesswork.</h2><p>Create a role, invite candidates, then inspect their submitted assessment reports in one place.</p></div><div className="hero-icon"><Users size={28} /></div></div><div className="recruiter-grid"><div className="card post-role"><p className="kicker">CREATE OPPORTUNITY</p><h3>Post a hiring role</h3><label>Role title<input value={jobForm.title} onChange={e => setJobForm({ ...jobForm, title: e.target.value })} placeholder="e.g. Junior Frontend Developer" /></label><label>Company<input value={jobForm.company} onChange={e => setJobForm({ ...jobForm, company: e.target.value })} placeholder="Company name" /></label><label>Role description<textarea value={jobForm.description} onChange={e => setJobForm({ ...jobForm, description: e.target.value })} placeholder="What will candidates be assessed for?" /></label><label>Skills <small>comma-separated</small><input value={jobForm.skills} onChange={e => setJobForm({ ...jobForm, skills: e.target.value })} placeholder="JavaScript, React" /></label><button className="primary" onClick={createJob} disabled={busy}><Plus size={15} /> Post role</button></div><div className="card recruiter-roles"><div className="section-title"><div><p className="kicker">YOUR OPEN ROLES</p><h3>Applications inbox</h3></div><button className="subtle" onClick={loadJobs}>Refresh</button></div>{jobs.filter(job => job.recruiterName === displayName).length ? <div className="role-list">{jobs.filter(job => job.recruiterName === displayName).map(job => <button key={job.id} className={selectedJob?.id === job.id ? "role-row selected" : "role-row"} onClick={() => viewApplications(job)}><div><b>{job.title}</b><span>{job.company} · {job.skills.slice(0, 2).join(", ")}</span></div><ChevronRight size={16} /></button>)}</div> : <div className="empty-mini"><BriefcaseBusiness size={21} /><span>Post your first role to start receiving assessment reports.</span></div>}{selectedJob?.recruiterName === displayName && <div className="applications"><div className="applications-head"><div><p className="kicker">SUBMITTED ASSESSMENTS</p><h3>{selectedJob.title}</h3></div><span>{applications.length} submitted</span></div>{applications.length ? applications.map(application => <article className="application" key={application.id}><div className="avatar-small">{application.candidateName.slice(0, 2).toUpperCase()}</div><div className="applicant-detail"><b>{application.candidateName}</b><span>Submitted {new Date(application.createdAt).toLocaleDateString()} · {application.eventCount} evidence events</span></div><strong>{application.latestReport?.technicalCorrectness === null || application.latestReport?.technicalCorrectness === undefined ? "—" : `${application.latestReport.technicalCorrectness}%`}</strong><a href={`${API}/sessions/${application.id}/report-download`}><Download size={15} /> Download report</a></article>) : <div className="empty-mini"><FileText size={21} /><span>No submitted assessments for this role yet.</span></div>}</div>}</div></div></section>;
-
-  const workspace = <div className="workspace"><section className="brief-column"><div className="card active-role"><p className="kicker">ASSESSMENT FOR</p><h3>{selectedJob?.title || session?.jobTitle || "Coding assessment"}</h3><span><Building2 size={13} /> {selectedJob?.company || "VibeProof"}</span></div><div className="card task-card"><div className="task-top"><span className="tag"><Braces size={13} /> JavaScript</span><span className="task-time">~15 min</span></div><h2>Student Expense Insights</h2><p>Complete <code>summarizeExpenses(expenses)</code>. It must return a grand <code>total</code> and a <code>byCategory</code> object.</p><div className="requirements"><b>Acceptance criteria</b><ul><li>Return a useful empty result for an empty list.</li><li>Add every expense to the grand total.</li><li>Accumulate repeated categories.</li></ul></div></div><div className="card plan-card"><div className="heading-row"><div><p className="kicker">OPTIONAL EVIDENCE</p><h3>Plan your approach</h3></div><ClipboardList size={18} /></div><textarea value={plan} onChange={e => setPlan(e.target.value)} placeholder="Describe how you will approach the task…" /><div className="card-footer"><span>Helps reviewers understand your reasoning.</span><button className="subtle" onClick={savePlan} disabled={!plan.trim() || busy}>Save plan</button></div></div></section><section className="work-column"><div className="editor card"><div className="editor-head"><span><Code2 size={15} /> solution.js</span><span>JavaScript</span></div><div className="editor-note"><span><CircleAlert size={14} /> The starter includes one intentional bug. Find it through the tests.</span><button onClick={() => setCode(starterCode)}><RotateCcw size={14} /></button></div><textarea className="code" spellCheck={false} value={code} onChange={e => setCode(e.target.value)} /><div className="run-bar"><span><i /> Runs locally in browser worker</span><button className="run" onClick={runTests} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <Play size={15} />} Run visible tests</button></div></div><div className="results card"><div className="heading-row"><div><p className="kicker">VERIFICATION</p><h3>Test evidence {testRun && <em>{testRun.passed}/{testRun.total} passed</em>}</h3></div>{testRun ? <span className="score">{progress}%</span> : <FlaskConical size={19} />}</div>{testRun ? <><div className="progress"><span style={{ width: `${progress}%` }} /></div><div className="test-list">{testRun.results.map(item => <details className={item.passed ? "test pass" : "test fail"} key={item.name}><summary>{item.passed ? <CircleCheck size={16} /> : <CircleAlert size={16} />}<span>{item.name}</span><small>{item.passed ? "Passed" : "Needs work"}</small></summary><div className="test-detail"><b>Expected</b><code>{item.expected}</code><b>Actual</b><code>{item.actual}</code></div></details>)}</div></> : <div className="empty-results"><FlaskConical size={24} /><b>No test run yet</b><span>Run visible tests to create evidence.</span></div>}<p className="runner-note">Prototype safety: code runs in a browser worker. Production needs an isolated runner.</p><button className="submit" onClick={submit} disabled={busy}>Submit assessment <ChevronRight size={15} /></button></div><div className="card coach"><div className="coach-head"><div className="coach-orb"><Bot size={18} /></div><div><h3>AI reasoning coach</h3><span>{status.ai === "nvidia-nim" ? "NVIDIA NIM · live" : "NVIDIA NIM · demo fallback"}</span></div><span className="coach-chip">HINTS ONLY</span></div><div className="chat">{chat.slice(-4).map((message, index) => <div key={index} className={message.role === "user" ? "bubble user" : "bubble"}><b>{message.role === "user" ? "You" : "Coach"}{message.mode === "demo" ? " · demo" : ""}</b><p>{message.text}</p></div>)}</div><div className="ask"><input value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => e.key === "Enter" && askCoach()} placeholder="Ask for a hint about your approach…" disabled={busy} /><button onClick={askCoach} disabled={busy || !prompt.trim()}><Send size={16} /></button></div><p className="coach-foot"><ShieldCheck size={13} /> AI use is recorded for review, never prompt-count scored.</p></div></section></div>;
-  const timeline = <section className="page card"><div className="page-head"><div><p className="kicker">TRANSPARENT SESSION RECORD</p><h2>Evidence trail</h2><p>Only task-relevant events are captured.</p></div><span className="event-count">{events.length} events</span></div><div className="timeline">{[...events].reverse().map(item => <article className="timeline-item" key={item.id}><div className="event-icon">{item.type === "ai_interaction" ? <Bot size={15} /> : item.type === "test_run" ? <FlaskConical size={15} /> : item.type === "submission" ? <ShieldCheck size={15} /> : <ClipboardList size={15} />}</div><div><div className="event-title"><b>{eventLabel(item.type)}</b><time>{new Date(item.timestamp).toLocaleString()}</time></div><p>{item.type === "plan_submitted" ? item.payload.plan : item.type === "ai_interaction" ? item.payload.prompt : item.type === "test_run" ? `${item.payload.passed}/${item.payload.total} visible tests passed` : item.type === "submission" ? "Report delivered to the recruiter dashboard." : "Candidate opened this assessment."}</p>{(item.type === "ai_interaction" || item.type === "test_run") && <details><summary>Inspect evidence</summary><pre>{item.type === "ai_interaction" ? item.payload.answer : JSON.stringify(item.payload.results, null, 2)}</pre></details>}</div></article>)}</div></section>;
-  const candidateReport = <section className="report-page">{!activeReport ? <div className="card empty-page"><FileText size={30} /><b>No report yet</b><span>Submit the assessment to generate and share your report.</span></div> : <><div className="report-hero"><div><p className="kicker">CANDIDATE REPORT · SHARED WITH RECRUITER</p><h2>{displayName}</h2><p>{session?.jobTitle || "Coding assessment"} · {new Date(activeReport.generatedAt).toLocaleString()}</p></div><div className="grade"><strong>{activeReport.technicalCorrectness === null ? "—" : `${activeReport.technicalCorrectness}%`}</strong><span>visible test pass rate</span></div></div><div className="report-grid"><div className="card"><p className="kicker">SKILL SIGNALS</p><h3>What this session shows</h3><div className="dimensions">{activeReport.dimensions.map(d => <div className="dimension" key={d.name}><div><b>{d.name}</b><p>{d.status}</p></div><button onClick={() => setPage("timeline")}>View evidence <ArrowRight size={13} /></button></div>)}</div></div><div className="card feedback"><p className="kicker">YOUR NEXT MOVE</p><h3>Candidate feedback</h3><p className="feedback-copy">{activeReport.candidateFeedback}</p><ul>{activeReport.nextSteps.map(step => <li key={step}>{step}</li>)}</ul></div></div><div className="card limitations"><p className="kicker">CONFIDENCE & LIMITS</p>{activeReport.limitations.map(item => <p key={item}>{item}</p>)}</div></>}</section>;
-
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-orb"><Sparkles size={18} /></span><span>vibe<span>proof</span></span></div><p className="side-caption">{role} workspace</p><nav><button className={page === "dashboard" ? "nav active" : "nav"} onClick={() => setPage("dashboard")}><LayoutDashboard size={17} /><span>Dashboard</span></button>{role === "candidate" && <><button className={page === "workspace" ? "nav active" : "nav"} onClick={() => session && setPage("workspace")}><TerminalSquare size={17} /><span>Assessment</span></button><button className={page === "timeline" ? "nav active" : "nav"} onClick={() => session && setPage("timeline")}><ClipboardList size={17} /><span>Evidence trail</span></button><button className={page === "report" ? "nav active" : "nav"} onClick={() => session && setPage("report")}><FileText size={17} /><span>My report</span></button></>}</nav><div className="side-foot"><div className="candidate-avatar">{displayName.slice(0, 2).toUpperCase()}</div><div><b>{displayName}</b><small>{role} view</small></div><button className="logout" onClick={signOut} title="Sign out"><LogOut size={14} /></button></div></aside><main><header className="topbar"><div><p className="kicker">CODE APEX 3.0 · IM-01</p><h1>{role === "recruiter" ? "Hiring workspace" : "Candidate workspace"}</h1></div><div className="stack-status"><span className={status.online ? "online" : "offline"}><i /> {status.online ? "API connected" : "API offline"}</span><span>Neon: {status.storage}</span><span>NIM: {status.ai === "nvidia-nim" ? "live" : "demo"}</span></div></header><div className="notice"><Lightbulb size={15} /><span>{notice}</span></div>{page === "dashboard" ? role === "recruiter" ? recruiterDashboard : candidateDashboard : page === "workspace" ? workspace : page === "timeline" ? timeline : candidateReport}<footer>VibeProof · IM-01 Vibe Coding prototype <span>Evidence first · AI-assisted, human-reviewed</span></footer></main></div>;
-}
-export default App;

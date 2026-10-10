@@ -1,7 +1,5 @@
 const metaEnv = (import.meta as any).env;
-const BASE_URL = metaEnv?.VITE_API_URL 
-  ? `${metaEnv.VITE_API_URL}/api` 
-  : 'https://vibe-x-backend.vercel.app/api';
+const BASE_URL = (metaEnv?.VITE_API_URL ? metaEnv.VITE_API_URL : 'https://vibe-x-backend.vercel.app') + '/api';
 
 export const vibeXApi = {
   async getCandidates() {
@@ -9,7 +7,7 @@ export const vibeXApi = {
       const res = await fetch(`${BASE_URL}/candidates`);
       if (!res.ok) throw new Error("Offline");
       const data = await res.json();
-      return data.candidates;
+      return data.candidates || [];
     } catch {
       return [
         {
@@ -42,8 +40,7 @@ export const vibeXApi = {
     } catch {
       return {
         sessionId: "local-" + Date.now(),
-        candidateName,
-        task: { id: "task-iot-stream" }
+        candidateName
       };
     }
   },
@@ -110,7 +107,7 @@ export const vibeXApi = {
           ],
           fairnessAudit: {
             totalPrompts: 2,
-            explanation: "Per iMocha IM-01 Fairness Guidelines: Prompt count is NEVER scored as skill. Evaluation is anchored strictly to deterministic assertions and verified code actions."
+            explanation: "Per iMocha IM-01 Fairness Guidelines: Prompt count is NEVER scored as skill. Grounded strictly in verified test outcomes."
           }
         },
         candidateFeedback: {

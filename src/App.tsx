@@ -1,21 +1,25 @@
 import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { vibeXApi } from './services/api';
 
-// Safe Error Boundary to prevent white screen crashes
+// Error Boundary: Displays friendly debugging UI instead of a blank screen
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error(error, info); }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error("vibeX Error:", error, info); }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 bg-slate-950 text-white min-h-screen">
-          <h2 className="text-rose-500 font-bold text-lg">Error Caught</h2>
-          <pre className="bg-slate-900 p-4 mt-2 rounded text-xs">{this.state.error?.message}</pre>
-          <button onClick={() => window.location.reload()} className="mt-4 bg-indigo-600 px-4 py-2 rounded text-xs">Reload</button>
+        <div style={{ padding: '40px', background: '#020617', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+          <h2 style={{ color: '#ef4444', fontSize: '20px', fontWeight: 'bold' }}>Application Encountered an Issue</h2>
+          <pre style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', marginTop: '12px', fontSize: '12px', color: '#cbd5e1' }}>
+            {this.state.error?.message}
+          </pre>
+          <button onClick={() => window.location.reload()} style={{ marginTop: '16px', background: '#4f46e5', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
+            Reload Page
+          </button>
         </div>
       );
     }
@@ -23,7 +27,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-// Inline SVGs (zero icon dependency mismatches)
+// Inline SVGs: 100% immune to lucide-react dependency version mismatches
 const Icons = {
   Sparkles: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>,
   Candidate: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg>,
@@ -68,10 +72,10 @@ export function flagAnomalies(readings, baseline, maxDeviation) {
 function MainApp() {
   const [currentUser, setCurrentUser] = useState<{ name: string; role: 'candidate' | 'recruiter' } | null>(null);
   const [authRole, setAuthRole] = useState<'candidate' | 'recruiter'>('candidate');
-  const [sessionId, setSessionId] = useState('');
+  const [sessionId, setSessionId] = useState('session-' + Date.now());
   const [candidateView, setCandidateView] = useState<'workspace' | 'feedback'>('workspace');
   
-  // Workspace state
+  // Workspace state (initialized with robust defaults)
   const [code, setCode] = useState(STARTER_CODE);
   const [testResults, setTestResults] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -87,21 +91,25 @@ function MainApp() {
 
   useEffect(() => {
     vibeXApi.getCandidates().then(data => {
-      setCandidates(data);
-      if (data.length > 0) setSelectedCandidate(data[0]);
+      if (data && data.length > 0) {
+        setCandidates(data);
+        setSelectedCandidate(data[0]);
+      }
     });
   }, []);
 
   const handleStartCandidate = async () => {
-    const data = await vibeXApi.startSession("Chetan Shakhapure");
-    setSessionId(data.sessionId);
+    try {
+      const data = await vibeXApi.startSession("Chetan Shakhapure");
+      if (data?.sessionId) setSessionId(data.sessionId);
+    } catch {}
     setCurrentUser({ name: "Chetan Shakhapure", role: "candidate" });
   };
 
   const handleRunTests = async () => {
     setIsExecuting(true);
     const data = await vibeXApi.runTests(sessionId, code);
-    setTestResults(data.results || []);
+    setTestResults(data?.results || []);
     setIsExecuting(false);
   };
 
@@ -116,7 +124,7 @@ function MainApp() {
     const failed = testResults.filter(t => !t.passed).map(t => t.id);
     const res = await vibeXApi.askCoach(sessionId, q, code, failed);
 
-    setChatLog(prev => [...prev, { sender: 'coach', text: res.guidance }]);
+    setChatLog(prev => [...prev, { sender: 'coach', text: res?.guidance || "Consider checking input boundary validations." }]);
     setIsCoachThinking(false);
   };
 
@@ -230,7 +238,7 @@ function MainApp() {
                     <div className="text-2xl font-black text-indigo-400 mt-1">{selectedCandidate.score}%</div>
                   </div>
                   <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-xs text-slate-400">AI Persona</div>
+                    <div className="text-xs text-slate-400">AI Collaboration</div>
                     <div className="text-lg font-bold text-emerald-400 mt-1">{selectedCandidate.aiFluency}</div>
                   </div>
                   <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">

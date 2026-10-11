@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { vibeXApi } from './services/api';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -36,7 +36,27 @@ const Icons = {
   Code: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>,
   FileText: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>,
   UserCheck: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM20 8l-4 4-2-2"/></svg>,
-  CopyCheck: () => <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+  CopyCheck: () => <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>,
+  Grip: () => (
+    <svg className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="6" cy="4" r="1.2" />
+      <circle cx="10" cy="4" r="1.2" />
+      <circle cx="6" cy="8" r="1.2" />
+      <circle cx="10" cy="8" r="1.2" />
+      <circle cx="6" cy="12" r="1.2" />
+      <circle cx="10" cy="12" r="1.2" />
+    </svg>
+  ),
+  Maximize: () => (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+    </svg>
+  ),
+  Minimize: () => (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 13h-6m0 0v6m0-6l7 7M5 11h6m0 0V5m0 6L4 4" />
+    </svg>
+  )
 };
 
 const ASSESSMENT_TASKS = [
@@ -91,11 +111,56 @@ function MainApp() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isPracticeMode, setIsPracticeMode] = useState(false);
 
+  // Active Task State
   const currentTask = ASSESSMENT_TASKS[0];
   const [code, setCode] = useState(currentTask.starterCode);
   const [testResults, setTestResults] = useState(currentTask.tests);
   const [isExecuting, setIsExecuting] = useState(false);
 
+  // -------------------------------------------------------------
+  // INTERACTIVE RESIZABLE SLIDER STATE FOR CHAT WINDOW
+  // -------------------------------------------------------------
+  const [chatWidth, setChatWidth] = useState(420); // Default comfortable width (in px)
+  const [isDragging, setIsDragging] = useState(false);
+  const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const startDragging = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const stopDragging = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const onDrag = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging || !workspaceContainerRef.current) return;
+      const containerRect = workspaceContainerRef.current.getBoundingClientRect();
+      const newWidth = containerRect.right - e.clientX;
+      // Constrain width between 280px (compact) and 820px (expanded)
+      if (newWidth >= 280 && newWidth <= containerRect.width - 450) {
+        setChatWidth(newWidth);
+      }
+    },
+    [isDragging]
+  );
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', onDrag);
+      window.addEventListener('mouseup', stopDragging);
+    } else {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDragging);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDragging);
+    };
+  }, [isDragging, onDrag, stopDragging]);
+
+  // Journey Tracking
   const [currentJourneyPhase, setCurrentJourneyPhase] = useState<'Planning' | 'Prompting' | 'Testing' | 'Fixing'>('Planning');
   const [journeyTimeline, setJourneyTimeline] = useState([
     { id: "J-01", phase: "Planning", title: "Assessment Onboarded", time: "10:00:15", detail: "Candidate reviewed requirements and initialized workspace." },
@@ -104,6 +169,7 @@ function MainApp() {
     { id: "J-04", phase: "Fixing", title: "Integrated Precision Safeguard", time: "10:09:12", detail: "Applied Number(avg.toFixed(2)); verified 4/4 assertions green." }
   ]);
 
+  // AI Pair Programmer & Coach State
   const [coachMode, setCoachMode] = useState<'socratic' | 'pair_programmer'>('pair_programmer');
   const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string; codeSnippet?: string }[]>([
     {
@@ -152,30 +218,20 @@ function MainApp() {
     const failed = testResults.filter(t => !t.passed).map(t => t.id);
     const res = await vibeXApi.askCoach("session-id", q, code, failed);
 
-    let generatedSnippet = "";
-    const lower = q.toLowerCase();
-    if (lower.includes("parse") || lower.includes("guard") || lower.includes("validation")) {
-      generatedSnippet = `export function parseEvent(rawJson) {
-  const data = JSON.parse(rawJson);
-  if (!data.sensorId || data.reading === undefined) {
-    throw new Error("Invalid telemetry schema: missing sensorId or reading");
-  }
-  return data;
-}`;
-    } else if (lower.includes("float") || lower.includes("average") || lower.includes("round")) {
-      generatedSnippet = `export function computeWindowAverages(readings) {
-  if (!readings || readings.length === 0) return 0;
-  const sum = readings.reduce((acc, curr) => acc + curr, 0);
-  return Number((sum / readings.length).toFixed(2));
-}`;
+    // Extract code snippet if present in markdown code fences
+    let extractedSnippet = "";
+    const rawGuidance = res.guidance || "";
+    const codeBlockMatch = rawGuidance.match(/```(?:javascript|js)?([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      extractedSnippet = codeBlockMatch[1].trim();
     }
 
     setChatLog(prev => [
       ...prev,
       {
         sender: 'ai',
-        text: res.guidance,
-        codeSnippet: generatedSnippet || undefined
+        text: rawGuidance,
+        codeSnippet: extractedSnippet || undefined
       }
     ]);
     setIsAiThinking(false);
@@ -185,7 +241,7 @@ function MainApp() {
       {
         id: `J-PROMPT-${Date.now()}`,
         phase: "Prompting",
-        title: `AI Prompt Dispatched`,
+        title: "AI Prompt Dispatched",
         time: new Date().toLocaleTimeString(),
         detail: `Candidate asked: "${q.slice(0, 50)}..."`
       }
@@ -216,7 +272,7 @@ function MainApp() {
   };
 
   return (
-    <div className={`min-h-screen ${containerTheme} flex flex-col font-sans transition-colors duration-150`}>
+    <div className={`min-h-screen ${containerTheme} flex flex-col font-sans transition-colors duration-150 select-${isDragging ? 'none' : 'auto'}`}>
       {showOnboarding && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className={`max-w-lg w-full ${cardTheme} border rounded-2xl p-7 shadow-2xl space-y-5`}>
@@ -253,7 +309,7 @@ function MainApp() {
       )}
 
       {/* Top Header */}
-      <header className={`h-14 border-b ${borderTheme} ${surfaceTheme} px-6 flex items-center justify-between`}>
+      <header className={`h-14 border-b ${borderTheme} ${surfaceTheme} px-6 flex items-center justify-between shrink-0`}>
         <div className="flex items-center space-x-3">
           <span className="bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-black px-2.5 py-1 rounded text-xs tracking-wider">vibeX</span>
           <span className="text-xs font-semibold text-zinc-500">iMocha IM-01</span>
@@ -306,11 +362,11 @@ function MainApp() {
         </div>
       </header>
 
-      {/* WORKSPACE TAB */}
+      {/* WORKSPACE TAB WITH INTERACTIVE DRAGGABLE CHAT SLIDER */}
       {activeTab === 'workspace' && (
-        <div className="flex-1 grid grid-cols-12 overflow-hidden">
-          {/* Task Guidance Column */}
-          <div className={`col-span-3 border-r ${borderTheme} p-5 overflow-y-auto ${surfaceTheme} text-xs space-y-4`}>
+        <div ref={workspaceContainerRef} className="flex-1 flex overflow-hidden relative">
+          {/* Left: Task Guidance Column */}
+          <div className={`w-80 shrink-0 border-r ${borderTheme} p-5 overflow-y-auto ${surfaceTheme} text-xs space-y-4`}>
             <div>
               <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Benchmark Task</span>
               <h2 className="font-bold text-sm mt-0.5">{currentTask.title}</h2>
@@ -333,8 +389,8 @@ function MainApp() {
             </div>
           </div>
 
-          {/* IDE Editor & Sandbox Column */}
-          <div className={`col-span-6 flex flex-col border-r ${borderTheme} ${isLight ? 'bg-white' : 'bg-zinc-950'}`}>
+          {/* Middle: Code Editor & Assertion Sandbox */}
+          <div className={`flex-1 flex flex-col min-w-0 ${isLight ? 'bg-white' : 'bg-zinc-950'}`}>
             <div className={`h-10 border-b ${borderTheme} px-4 flex justify-between items-center ${surfaceTheme}`}>
               <span className="text-xs font-mono text-zinc-500">processor.js</span>
               <button 
@@ -353,6 +409,7 @@ function MainApp() {
               spellCheck={false}
             />
 
+            {/* Deterministic Sandbox Bar */}
             <div className={`h-48 border-t ${borderTheme} ${surfaceTheme} p-3 overflow-y-auto text-xs`}>
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-xs">Deterministic Assertion Sandbox</span>
@@ -375,24 +432,77 @@ function MainApp() {
             </div>
           </div>
 
-          {/* AI Pair Programmer Column */}
-          <div className={`col-span-3 flex flex-col ${surfaceTheme}`}>
-            <div className={`h-10 border-b ${borderTheme} px-4 flex items-center justify-between`}>
+          {/* ============================================================== */}
+          {/* DRAGGABLE CHAT WINDOW SLIDER / RESIZE HANDLE                   */}
+          {/* ============================================================== */}
+          <div
+            onMouseDown={startDragging}
+            className={`w-2 hover:w-2.5 active:w-2.5 cursor-col-resize relative flex items-center justify-center transition-all z-20 group select-none ${
+              isDragging ? 'bg-blue-600' : 'bg-transparent hover:bg-blue-400/30'
+            }`}
+            title="Drag to resize chat window"
+          >
+            {/* Visual Border Separator Line */}
+            <div className={`w-[1px] h-full ${isDragging ? 'bg-blue-600' : borderTheme} group-hover:bg-blue-500 transition`} />
+            
+            {/* Center Grip Badge */}
+            <div className={`absolute top-1/2 -translate-y-1/2 -left-1.5 w-4 h-8 rounded-full border shadow-sm flex items-center justify-center transition ${
+              isDragging 
+                ? 'bg-blue-600 border-blue-700 text-white shadow-blue-500/50' 
+                : `${cardTheme} border-zinc-300 dark:border-zinc-700 group-hover:border-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50`
+            }`}>
+              <Icons.Grip />
+            </div>
+          </div>
+
+          {/* Right: Resizable AI Chat Window */}
+          <div 
+            style={{ width: `${chatWidth}px` }} 
+            className={`shrink-0 flex flex-col ${surfaceTheme} transition-[width] duration-75`}
+          >
+            <div className={`h-10 border-b ${borderTheme} px-3 flex items-center justify-between`}>
               <div className="flex items-center space-x-2 text-xs font-bold">
                 <Icons.Bot />
                 <span>AI Pair Programmer</span>
               </div>
-              <div className="flex items-center text-[10px] border border-zinc-200 dark:border-zinc-800 rounded p-0.5">
-                <button 
-                  onClick={() => setCoachMode('socratic')} 
-                  className={`px-1.5 py-0.5 rounded ${coachMode === 'socratic' ? 'bg-blue-600 text-white font-bold' : 'text-zinc-400'}`}>
-                  Coach
-                </button>
-                <button 
-                  onClick={() => setCoachMode('pair_programmer')} 
-                  className={`px-1.5 py-0.5 rounded ${coachMode === 'pair_programmer' ? 'bg-blue-600 text-white font-bold' : 'text-zinc-400'}`}>
-                  Pair
-                </button>
+
+              {/* Slider Quick-Preset Controls & Mode Toggle */}
+              <div className="flex items-center space-x-1.5">
+                {/* Chat Width Quick Presets */}
+                <div className="flex items-center border border-zinc-200 dark:border-zinc-800 rounded p-0.5 text-[9px]">
+                  <button 
+                    onClick={() => setChatWidth(320)}
+                    title="Narrow chat pane (320px)"
+                    className={`px-1.5 py-0.5 rounded transition ${chatWidth <= 350 ? 'bg-zinc-200 dark:bg-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-700'}`}>
+                    S
+                  </button>
+                  <button 
+                    onClick={() => setChatWidth(450)}
+                    title="Default chat pane (450px)"
+                    className={`px-1.5 py-0.5 rounded transition ${chatWidth > 350 && chatWidth < 550 ? 'bg-zinc-200 dark:bg-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-700'}`}>
+                    M
+                  </button>
+                  <button 
+                    onClick={() => setChatWidth(620)}
+                    title="Wide chat pane for large code blocks (620px)"
+                    className={`px-1.5 py-0.5 rounded transition ${chatWidth >= 550 ? 'bg-zinc-200 dark:bg-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-700'}`}>
+                    L
+                  </button>
+                </div>
+
+                {/* Socratic Coach vs Pair Programmer Toggle */}
+                <div className="flex items-center text-[10px] border border-zinc-200 dark:border-zinc-800 rounded p-0.5">
+                  <button 
+                    onClick={() => setCoachMode('socratic')} 
+                    className={`px-1.5 py-0.5 rounded ${coachMode === 'socratic' ? 'bg-blue-600 text-white font-bold' : 'text-zinc-400'}`}>
+                    Coach
+                  </button>
+                  <button 
+                    onClick={() => setCoachMode('pair_programmer')} 
+                    className={`px-1.5 py-0.5 rounded ${coachMode === 'pair_programmer' ? 'bg-blue-600 text-white font-bold' : 'text-zinc-400'}`}>
+                    Pair
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -412,10 +522,10 @@ function MainApp() {
             <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs">
               {chatLog.map((msg, i) => (
                 <div key={i} className={`p-3 rounded-xl border leading-relaxed space-y-2 ${msg.sender === 'user' ? 'bg-blue-600 text-white border-blue-600 ml-4 font-medium' : `${cardTheme} mr-4`}`}>
-                  <div>{msg.text}</div>
+                  <div className="whitespace-pre-line">{msg.text}</div>
                   {msg.codeSnippet && (
                     <div className="bg-zinc-950 text-zinc-100 p-2.5 rounded-lg border border-zinc-800 font-mono text-[10px] space-y-2">
-                      <pre className="overflow-x-auto">{msg.codeSnippet}</pre>
+                      <pre className="overflow-x-auto whitespace-pre">{msg.codeSnippet}</pre>
                       <button 
                         onClick={() => handleApplySnippet(msg.codeSnippet!)}
                         className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-2 py-1 rounded text-[10px] flex items-center space-x-1 transition shadow-sm">

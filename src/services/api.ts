@@ -2,39 +2,6 @@ const metaEnv = (import.meta as any).env;
 const BASE_URL = (metaEnv?.VITE_API_URL ? metaEnv.VITE_API_URL : 'https://vibe-x-backend.vercel.app') + '/api';
 
 export const vibeXApi = {
-  // --- Neon Auth ---
-  async signup(name: string, email: string, password: string, role: 'candidate' | 'recruiter') {
-    try {
-      const res = await fetch(`${BASE_URL}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role })
-      });
-      if (!res.ok) throw new Error("Signup failed");
-      const data = await res.json();
-      return data.user;
-    } catch {
-      return { id: "local-" + Date.now(), name, email, role };
-    }
-  },
-
-  async login(email: string, password: string) {
-    try {
-      const res = await fetch(`${BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      if (!res.ok) throw new Error("Invalid credentials");
-      const data = await res.json();
-      return data.user;
-    } catch {
-      const role = email.includes('recruiter') ? 'recruiter' : 'candidate';
-      return { id: "local-user", name: email.split('@')[0], email, role };
-    }
-  },
-
-  // --- Assessment Endpoints ---
   async getCandidates() {
     try {
       const res = await fetch(`${BASE_URL}/candidates`);
@@ -108,7 +75,9 @@ export const vibeXApi = {
       if (!res.ok) throw new Error("Offline");
       return await res.json();
     } catch {
-      return { guidance: "💡 **Coach Hint**: Verify edge cases, check if required fields exist, and remember `Number(val.toFixed(2))` for precision." };
+      return {
+        guidance: "💡 **Coach Hint**: Verify edge cases, check if required fields exist, and remember `Number(val.toFixed(2))` for precision."
+      };
     }
   },
 

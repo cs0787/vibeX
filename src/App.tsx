@@ -37,7 +37,7 @@ const Icons = {
   Alert: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
   Bot: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>,
   Send: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
-  Diff: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M3 12h18"/></svg>,
+  Diff: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M3 12h18"/></svg>,
   FileCode: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="10 13 8 15 10 17"/><polyline points="14 13 16 15 14 17"/></svg>,
   Clock: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   Shield: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
@@ -128,7 +128,7 @@ function renderInline(str: string) {
   return tokens.map((t, i) => {
     if (t.startsWith('`') && t.endsWith('`')) {
       return (
-        <code key={i} className="font-mono text-[10px] bg-zinc-850 text-blue-300 px-1 py-0.5 rounded border border-zinc-750">
+        <code key={i} className="font-mono text-[10px] bg-zinc-800 text-blue-300 px-1 py-0.5 rounded border border-zinc-700/60">
           {t.slice(1, -1)}
         </code>
       );
@@ -230,9 +230,8 @@ function VibeXPlatform() {
   const [testResults, setTestResults] = useState<any[]>(DEFAULT_TASK.tests);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // CHAT BOX CONTROLS & SLIDERS
-  const [chatWidth, setChatWidth] = useState(420); // Width Slider value
-  const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2); // 1 = Socratic, 2 = Balanced, 3 = Pair
+  const [chatWidth, setChatWidth] = useState(420);
+  const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement null |>(null);
 
@@ -374,7 +373,6 @@ function VibeXPlatform() {
 
     const failed = testResults.filter(t => !t.passed).map(t => t.id);
     
-    // Inject assistance level constraints into prompt
     let contextualQuery = q;
     if (aiAssistanceLevel === 1) {
       contextualQuery = `[SOCRATIC MODE: Give conceptual hints only. DO NOT provide code solutions.] ${q}`;
@@ -387,7 +385,6 @@ function VibeXPlatform() {
     const aiTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setChatLog(prev => [...prev, { sender: 'ai', text: res.guidance, timestamp: aiTime }]);
 
-    // Automatic code diff extraction if AI provided code
     const codeMatch = res.guidance.match(/```(?:javascript|js)?([\s\S]*?)```/);
     if (codeMatch && codeMatch[1] && aiAssistanceLevel >= 2) {
       stageCodeSnippet(codeMatch[1]);
@@ -623,7 +620,7 @@ function VibeXPlatform() {
           </main>
         ) : (
           <div ref={containerRef} className="flex-1 flex overflow-hidden relative select-auto">
-            {/* Task Spec */}
+            {/* Task Spec Drawer */}
             {isSpecOpen && (
               <div className="w-72 shrink-0 border-r border-zinc-800 bg-zinc-900/40 flex flex-col overflow-hidden">
                 <div className="h-8 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400">
@@ -765,19 +762,15 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* ======================================================== */}
-            {/* RIGHT: AI PAIR PROGRAMMER WITH DEDICATED SLIDERS */}
-            {/* ======================================================== */}
+            {/* AI Assistant Panel */}
             <div style={{ width: `${chatWidth}px` }} className="shrink-0 flex flex-col bg-zinc-900/70 border-zinc-800 border-l font-sans overflow-hidden">
-              
-              {/* TOP CHAT HEADER WITH PANEL WIDTH SLIDER */}
+              {/* Header with Width Slider */}
               <div className="h-8 border-b border-zinc-800 bg-zinc-900 px-3 flex items-center justify-between text-xs select-none">
                 <div className="flex items-center space-x-2 font-mono text-[11px] font-semibold text-zinc-300">
                   <Icons.Bot />
                   <span>AI ASSISTANT</span>
                 </div>
 
-                {/* Interactive Width Slider Control */}
                 <div className="flex items-center space-x-2 bg-zinc-950/60 px-2 py-0.5 rounded border border-zinc-800">
                   <span className="text-[10px] font-mono text-zinc-500">Width</span>
                   <input
@@ -794,7 +787,7 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* SECOND TOOLBAR: 3-STOP AI ASSISTANCE LEVEL SLIDER */}
+              {/* Mode Slider Toolbar */}
               <div className="px-3 py-1.5 border-b border-zinc-800/80 bg-zinc-950/80 flex items-center justify-between text-[10px] font-mono select-none">
                 <span className="text-zinc-400 flex items-center space-x-1">
                   <Icons.Sliders />
@@ -803,8 +796,6 @@ function VibeXPlatform() {
 
                 <div className="flex items-center space-x-2">
                   <span className={`transition ${aiAssistanceLevel === 1 ? 'text-amber-400 font-bold' : 'text-zinc-600'}`}>Socratic</span>
-                  
-                  {/* Mode Slider */}
                   <input
                     type="range"
                     min="1"
@@ -815,12 +806,11 @@ function VibeXPlatform() {
                     className="w-14 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     title="1: Socratic Hints | 2: Balanced Architect | 3: Full Pair Programmer"
                   />
-
                   <span className={`transition ${aiAssistanceLevel === 3 ? 'text-emerald-400 font-bold' : 'text-zinc-600'}`}>Pair Diffs</span>
                 </div>
               </div>
 
-              {/* Action Suggestion Chips */}
+              {/* Action Chips */}
               <div className="p-2 border-b border-zinc-800/80 bg-zinc-950/40 flex gap-1.5 flex-wrap">
                 <button
                   onClick={() => handleSendPrompt("Scaffold schema guard for missing sensorId")}
@@ -834,8 +824,8 @@ function VibeXPlatform() {
                 </button>
               </div>
 
-              {/* Structured Message Feed (with Slim IDE Scroll Slider) */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
+              {/* Message Feed */}
+              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed">
                 {chatLog.map((m, i) => (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
@@ -855,7 +845,7 @@ function VibeXPlatform() {
                   </div>
                 )}
 
-                {/* Staged Diff Proposal Card */}
+                {/* Staged Diff Inspector */}
                 {stagedDiff && (
                   <div className="rounded border border-blue-500/40 bg-zinc-950 text-zinc-200 font-mono text-xs overflow-hidden mt-3 shadow-lg">
                     <div className="bg-zinc-900 px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between text-[10px]">
@@ -890,7 +880,7 @@ function VibeXPlatform() {
                 )}
               </div>
 
-              {/* Chat Input Box */}
+              {/* Chat Input */}
               <div className="p-2.5 border-t border-zinc-800 bg-zinc-900 flex items-center space-x-2">
                 <input
                   type="text"
@@ -1017,7 +1007,6 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* 3-Tier Hierarchy */}
               <div className="space-y-3">
                 <div className="p-4 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">Tier 1: Observed Facts (Raw Telemetry)</div>

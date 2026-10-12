@@ -37,11 +37,10 @@ const Icons = {
   Alert: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
   Bot: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>,
   Send: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
-  Diff: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M3 12h18"/></svg>,
+  Diff: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M3 12h18"/></svg>,
   FileCode: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="10 13 8 15 10 17"/><polyline points="14 13 16 15 14 17"/></svg>,
-  Clock: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  Clock: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   Shield: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  Terminal: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>,
   Grip: () => (
     <svg className="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 transition" viewBox="0 0 16 16" fill="currentColor">
       <circle cx="5" cy="4" r="1.2" /><circle cx="11" cy="4" r="1.2" />
@@ -50,6 +49,106 @@ const Icons = {
     </svg>
   )
 };
+
+// ============================================================================
+// STRUCTURED MESSAGE FORMATTER (Renders Markdown, Code, & Chips Cleanly)
+// ============================================================================
+function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (codeSnippet: string) => void }) {
+  // Split on code blocks
+  const parts = text.split(/(```[\s\S]*?```)/g);
+
+  return (
+    <div className="space-y-2 text-[11px] leading-relaxed">
+      {parts.map((part, index) => {
+        if (part.startsWith('```')) {
+          const lines = part.slice(3, -3).trim().split('\n');
+          const lang = lines[0].match(/^[a-zA-Z]+/)?.[0] || 'javascript';
+          const codeBody = lines[0].match(/^[a-zA-Z]+$/) ? lines.slice(1).join('\n') : lines.join('\n');
+
+          return (
+            <div key={index} className="my-2 rounded border border-zinc-800 bg-zinc-950 overflow-hidden font-mono text-[10px]">
+              <div className="bg-zinc-900/90 px-2.5 py-1 flex items-center justify-between border-b border-zinc-800 text-zinc-400">
+                <span className="uppercase text-[9px] font-bold">{lang}</span>
+                {onStageCode && (
+                  <button
+                    onClick={() => onStageCode(codeBody)}
+                    className="text-blue-400 hover:text-blue-300 font-bold transition flex items-center space-x-1">
+                    <Icons.Diff/>
+                    <span>Stage Patch</span>
+                  </button>
+                )}
+              </div>
+              <pre className="p-2.5 overflow-x-auto text-emerald-400 bg-zinc-950 leading-normal">
+                {codeBody}
+              </pre>
+            </div>
+          );
+        }
+
+        // Render formatted text with headings and bullet points
+        const textLines = part.split('\n');
+        return (
+          <div key={index} className="space-y-1">
+            {textLines.map((line, lIdx) => {
+              const trimmed = line.trim();
+              if (!trimmed) return null;
+
+              // Headings (###)
+              if (trimmed.startsWith('### ')) {
+                return (
+                  <div key={lIdx} className="font-mono text-[11px] font-bold text-zinc-200 mt-2 mb-0.5 flex items-center space-x-1">
+                    <span>{trimmed.replace('### ', '')}</span>
+                  </div>
+                );
+              }
+
+              // Bullet points (* or -)
+              if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || /^\d+\.\s/.test(trimmed)) {
+                const bulletText = trimmed.replace(/^(\*|-|\d+\.)\s*/, '');
+                return (
+                  <div key={lIdx} className="flex items-start space-x-1.5 pl-1">
+                    <span className="text-blue-400 font-bold leading-tight">•</span>
+                    <span className="text-zinc-300">
+                      {renderInlineFormatting(bulletText)}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <p key={lIdx} className="text-zinc-300">
+                  {renderInlineFormatting(trimmed)}
+                </p>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Inline formatting helper for **bold** and `code`
+function renderInlineFormatting(str: string) {
+  const tokens = str.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+  return tokens.map((t, i) => {
+    if (t.startsWith('`') && t.endsWith('`')) {
+      return (
+        <code key={i} className="font-mono text-[10px] bg-zinc-800 text-blue-300 px-1 py-0.5 rounded border border-zinc-700/60">
+          {t.slice(1, -1)}
+        </code>
+      );
+    }
+    if (t.startsWith('**') && t.endsWith('**')) {
+      return (
+        <strong key={i} className="font-semibold text-zinc-100">
+          {t.slice(2, -2)}
+        </strong>
+      );
+    }
+    return t;
+  });
+}
 
 const DEFAULT_TASK = {
   id: "task-iot-stream",
@@ -99,24 +198,17 @@ export function flagAnomalies(readings, baseline, maxDeviation) {
 export default function App() {
   return (
     <ErrorBoundary>
-      <VibeXPlatform />
+      <VibeXPlatform/>
     </ErrorBoundary>
   );
 }
 
 function VibeXPlatform() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('vibe_theme') as 'light' | 'dark') || 'dark';
-  });
-
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const isDark = theme === 'dark';
-  const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    localStorage.setItem('vibe_theme', next);
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+  const [currentUser, setCurrentUser] = useState<User null |>(() => {
     const saved = localStorage.getItem('vibe_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -147,7 +239,7 @@ function VibeXPlatform() {
   const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string; timestamp: string }[]>([
     {
       sender: 'ai',
-      text: "AI Pair Programmer connected via NVIDIA NIM (Llama 3.1 70B). Ready to assist with schema assertions, rolling window logic, or test diagnostics.",
+      text: "### 🔍 Status\n* AI Pair Programmer active via NVIDIA NIM (`meta/llama-3.1-70b-instruct`).\n\n### 💡 Assistance\n* Ask to scaffold schema validation guards.\n* Verify 2-decimal floating point precision.\n* Diagnose assertion boundaries.",
       timestamp: "10:14:02"
     }
   ]);
@@ -157,7 +249,7 @@ function VibeXPlatform() {
 
   const [chatWidth, setChatWidth] = useState(380);
   const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement null |>(null);
 
   const isCodeStale = lastTestedCode !== null && code !== lastTestedCode;
   const passedTestsCount = testResults.filter(t => t.passed).length;
@@ -263,6 +355,19 @@ function VibeXPlatform() {
     }
   };
 
+  // Helper to extract code from LLM response
+  const stageCodeSnippet = (snippet: string) => {
+    const fnMatch = snippet.match(/function\s+(\w+)/);
+    const fnName = fnMatch ? fnMatch[1] : "telemetryPatch";
+    setStagedDiff({
+      fn: fnName,
+      summary: `Update ${fnName} logic from AI proposal`,
+      codeSnippet: snippet.trim(),
+      additions: snippet.split('\n').length,
+      deletions: 1
+    });
+  };
+
   const handleSendPrompt = async (explicitPrompt?: string) => {
     const q = explicitPrompt || promptInput;
     if (!q.trim() || isAiThinking) return;
@@ -275,29 +380,15 @@ function VibeXPlatform() {
     const failed = testResults.filter(t => !t.passed).map(t => t.id);
     const res = await vibeXApi.askCoach(activeSessionId, q, code, failed);
 
-    let diff: any = null;
-    const lower = q.toLowerCase();
-    if (lower.includes("precision") || lower.includes("float") || lower.includes("average")) {
-      diff = {
-        fn: "computeWindowAverages",
-        summary: "Constrain rolling average arithmetic to 2 decimal places using Number(toFixed(2))",
-        codeSnippet: `export function computeWindowAverages(readings) {\n  if (!readings || readings.length === 0) return 0;\n  const sum = readings.reduce((acc, curr) => acc + curr, 0);\n  return Number((sum / readings.length).toFixed(2));\n}`,
-        additions: 3,
-        deletions: 1
-      };
-    } else if (lower.includes("guard") || lower.includes("parse") || lower.includes("validation")) {
-      diff = {
-        fn: "parseEvent",
-        summary: "Enforce contract schema validation throwing custom Error on missing parameters",
-        codeSnippet: `export function parseEvent(rawJson) {\n  const data = JSON.parse(rawJson);\n  if (!data.sensorId || data.reading === undefined) {\n    throw new Error("Invalid telemetry schema: missing sensorId or reading");\n  }\n  return data;\n}`,
-        additions: 4,
-        deletions: 1
-      };
-    }
-
     const aiTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setChatLog(prev => [...prev, { sender: 'ai', text: res.guidance, timestamp: aiTime }]);
-    if (diff) setStagedDiff(diff);
+
+    // Automatic code extraction into Staged Diff Inspector
+    const codeMatch = res.guidance.match(/```(?:javascript|js)?([\s\S]*?)```/);
+    if (codeMatch && codeMatch[1]) {
+      stageCodeSnippet(codeMatch[1]);
+    }
+
     setIsAiThinking(false);
   };
 
@@ -332,13 +423,10 @@ function VibeXPlatform() {
     }
   };
 
-  // Lines calculation for code editor gutter
   const lineCount = code.split('\n').length;
   const lineNumbers = Array.from({ length: Math.max(lineCount, 15) }, (_, i) => i + 1);
 
-  // ==========================================================================
-  // VIEW 1: AUTHENTICATION SCREEN
-  // ==========================================================================
+  // Auth Screen
   if (!currentUser) {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col justify-between font-sans antialiased`}>
@@ -347,10 +435,7 @@ function VibeXPlatform() {
             <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 dark:bg-zinc-200 dark:text-zinc-900">vibeX</span>
             <span className="text-[11px] text-zinc-400 font-mono">system.auth</span>
           </div>
-          <button
-            onClick={toggleTheme}
-            className={`p-1.5 rounded border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-400' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-600'} transition`}
-            title="Toggle theme">
+          <button onClick={toggleTheme} className="p-1.5 rounded border border-zinc-800 text-zinc-400 hover:text-white transition">
             {isDark ? <Icons.Sun /> : <Icons.Moon />}
           </button>
         </header>
@@ -366,17 +451,17 @@ function VibeXPlatform() {
           </div>
 
           {authMode === 'register' && (
-            <div className={`grid grid-cols-2 gap-1 p-0.5 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-200/80 border-zinc-300'} border rounded-md text-xs`}>
+            <div className={`grid grid-cols-2 gap-1 p-0.5 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-200 border-zinc-300'} border rounded-md text-xs`}>
               <button
                 type="button"
                 onClick={() => setAuthRole('candidate')}
-                className={`py-1.5 rounded font-medium transition ${authRole === 'candidate' ? (isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-zinc-900 shadow-sm') : 'text-zinc-500'}`}>
+                className={`py-1.5 rounded font-medium transition ${authRole === 'candidate' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500'}`}>
                 Candidate Studio
               </button>
               <button
                 type="button"
                 onClick={() => setAuthRole('recruiter')}
-                className={`py-1.5 rounded font-medium transition ${authRole === 'recruiter' ? (isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-zinc-900 shadow-sm') : 'text-zinc-500'}`}>
+                className={`py-1.5 rounded font-medium transition ${authRole === 'recruiter' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500'}`}>
                 Recruiter Portal
               </button>
             </div>
@@ -398,7 +483,7 @@ function VibeXPlatform() {
                   value={authName}
                   onChange={e => setAuthName(e.target.value)}
                   placeholder="e.g. Alex Morgan"
-                  className={`w-full ${isDark ? 'bg-zinc-900/90 border-zinc-800 text-white focus:border-zinc-700' : 'bg-white border-zinc-300 text-zinc-900 focus:border-zinc-400'} border rounded-md px-3 py-2 outline-none font-sans`}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 outline-none text-white focus:border-zinc-700 font-sans"
                 />
               </div>
             )}
@@ -411,7 +496,7 @@ function VibeXPlatform() {
                 value={authEmail}
                 onChange={e => setAuthEmail(e.target.value)}
                 placeholder="developer@organization.io"
-                className={`w-full ${isDark ? 'bg-zinc-900/90 border-zinc-800 text-white focus:border-zinc-700' : 'bg-white border-zinc-300 text-zinc-900 focus:border-zinc-400'} border rounded-md px-3 py-2 outline-none font-sans`}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 outline-none text-white focus:border-zinc-700 font-sans"
               />
             </div>
 
@@ -423,14 +508,14 @@ function VibeXPlatform() {
                 value={authPassword}
                 onChange={e => setAuthPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className={`w-full ${isDark ? 'bg-zinc-900/90 border-zinc-800 text-white focus:border-zinc-700' : 'bg-white border-zinc-300 text-zinc-900 focus:border-zinc-400'} border rounded-md px-3 py-2 outline-none font-mono`}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 outline-none text-white focus:border-zinc-700 font-mono"
               />
             </div>
 
             <button
               type="submit"
               disabled={authLoading}
-              className={`w-full py-2 rounded-md font-semibold text-xs transition ${isDark ? 'bg-zinc-100 text-zinc-900 hover:bg-white' : 'bg-zinc-900 text-white hover:bg-zinc-800'} disabled:opacity-50 mt-1`}>
+              className="w-full py-2 rounded-md font-semibold text-xs transition bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-50 mt-1">
               {authLoading ? "Authenticating..." : authMode === 'register' ? `Proceed to ${authRole === 'candidate' ? 'Studio' : 'Portal'}` : "Continue Session"}
             </button>
           </form>
@@ -443,28 +528,20 @@ function VibeXPlatform() {
             </button>
           </div>
         </main>
-
-        <footer className={`h-10 px-6 flex items-center justify-between border-t ${isDark ? 'border-zinc-800/80 text-zinc-500' : 'border-zinc-200 text-zinc-500'} text-[11px] font-mono`}>
-          <span>iMocha IM-01 Standard Compliant</span>
-          <span>vibeX.core::2.4.0</span>
-        </footer>
       </div>
     );
   }
 
-  // ==========================================================================
-  // VIEW 2: CANDIDATE STUDIO
-  // ==========================================================================
+  // Candidate View
   if (currentUser.role === 'candidate') {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
-        {/* Sleek IDE Header */}
         <header className={`h-11 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-4 flex items-center justify-between shrink-0 select-none z-10`}>
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
               <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 dark:bg-zinc-200 dark:text-zinc-900">vibeX</span>
               <span className="text-[11px] text-zinc-400 font-mono">/</span>
-              <span className="text-xs font-semibold text-zinc-300 dark:text-zinc-300">{DEFAULT_TASK.title}</span>
+              <span className="text-xs font-semibold text-zinc-300">{DEFAULT_TASK.title}</span>
             </div>
 
             <div className="hidden md:flex items-center space-x-2 pl-3 border-l border-zinc-800">
@@ -482,27 +559,22 @@ function VibeXPlatform() {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setCandidateView('home')}
-              className={`px-2.5 py-1 rounded text-xs transition border ${candidateView === 'home' ? (isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-200 border-zinc-300 text-zinc-900') : (isDark ? 'border-transparent text-zinc-400 hover:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-900')}`}>
+              className={`px-2.5 py-1 rounded text-xs transition border ${candidateView === 'home' ? 'bg-zinc-800 border-zinc-700 text-white' : 'border-transparent text-zinc-400 hover:text-white'}`}>
               Overview
             </button>
             <button
               onClick={() => setCandidateView('workspace')}
-              className={`px-2.5 py-1 rounded text-xs transition border ${candidateView === 'workspace' ? (isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-200 border-zinc-300 text-zinc-900') : (isDark ? 'border-transparent text-zinc-400 hover:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-900')}`}>
+              className={`px-2.5 py-1 rounded text-xs transition border ${candidateView === 'workspace' ? 'bg-zinc-800 border-zinc-700 text-white' : 'border-transparent text-zinc-400 hover:text-white'}`}>
               Editor
             </button>
 
-            <button
-              onClick={toggleTheme}
-              className={`p-1.5 rounded border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-400' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-600'} transition ml-1`}
-              title="Toggle color theme">
+            <button onClick={toggleTheme} className="p-1.5 rounded border border-zinc-800 hover:bg-zinc-800 text-zinc-400 transition ml-1">
               {isDark ? <Icons.Sun /> : <Icons.Moon />}
             </button>
 
             <div className="flex items-center space-x-2 pl-2 border-l border-zinc-800">
               <span className="text-[11px] font-mono text-zinc-400">{currentUser.name}</span>
-              <button
-                onClick={() => handleSetUser(null)}
-                className="text-[10px] text-zinc-500 hover:text-rose-400 transition font-mono">
+              <button onClick={() => handleSetUser(null)} className="text-[10px] text-zinc-500 hover:text-rose-400 transition font-mono">
                 [Exit]
               </button>
             </div>
@@ -517,7 +589,7 @@ function VibeXPlatform() {
               <p className="text-xs text-zinc-400 mt-0.5">Assigned Technical Verification Assessment • iMocha IM-01</p>
             </div>
 
-            <div className={`p-5 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-4`}>
+            <div className="p-5 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
@@ -535,21 +607,6 @@ function VibeXPlatform() {
                 {DEFAULT_TASK.description}
               </p>
 
-              <div className="grid grid-cols-3 gap-3 py-2 border-y border-zinc-800/60 text-xs font-mono">
-                <div>
-                  <span className="text-[10px] text-zinc-500 block">TIME ALLOCATION</span>
-                  <span className="text-zinc-200">{DEFAULT_TASK.durationMinutes} Minutes</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-500 block">EXECUTION RUNTIME</span>
-                  <span className="text-zinc-200">Node.js 20 Sandbox</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-500 block">AI ASSISTANT</span>
-                  <span className="text-zinc-200">NVIDIA NIM (Llama 3.1)</span>
-                </div>
-              </div>
-
               <div>
                 <button
                   onClick={handleStartAssessment}
@@ -562,10 +619,10 @@ function VibeXPlatform() {
           </main>
         ) : (
           <div ref={containerRef} className="flex-1 flex overflow-hidden relative select-auto">
-            {/* Left Collapsible Task Specification Drawer */}
+            {/* Task Spec */}
             {isSpecOpen && (
-              <div className={`w-72 shrink-0 border-r ${isDark ? 'border-zinc-800 bg-zinc-900/40' : 'border-zinc-200 bg-zinc-50'} flex flex-col overflow-hidden`}>
-                <div className={`h-8 px-3 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} flex items-center justify-between text-[11px] font-mono text-zinc-400`}>
+              <div className="w-72 shrink-0 border-r border-zinc-800 bg-zinc-900/40 flex flex-col overflow-hidden">
+                <div className="h-8 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400">
                   <span>TASK SPECIFICATION</span>
                   <button onClick={() => setIsSpecOpen(false)} className="hover:text-zinc-200">[Hide]</button>
                 </div>
@@ -579,7 +636,7 @@ function VibeXPlatform() {
                   <div className="space-y-2">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">Required Interfaces</span>
                     {DEFAULT_TASK.specifications.map((spec, i) => (
-                      <div key={i} className={`p-2.5 rounded border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1`}>
+                      <div key={i} className="p-2.5 rounded border bg-zinc-900 border-zinc-800 space-y-1">
                         <div className="font-mono text-[11px] font-semibold text-blue-400">{spec.method}</div>
                         <p className="text-[11px] text-zinc-400 leading-snug">{spec.requirement}</p>
                       </div>
@@ -601,23 +658,20 @@ function VibeXPlatform() {
 
             {/* Central Code Studio */}
             <div className="flex-1 flex flex-col min-w-0 bg-zinc-950">
-              {/* Tab Header Bar */}
-              <div className={`h-8 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/70' : 'border-zinc-200 bg-zinc-100'} px-2 flex items-center justify-between select-none`}>
+              <div className="h-8 border-b border-zinc-800 bg-zinc-900/70 px-2 flex items-center justify-between select-none">
                 <div className="flex items-center space-x-2">
                   {!isSpecOpen && (
                     <button onClick={() => setIsSpecOpen(true)} className="text-[11px] font-mono text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded hover:bg-zinc-800">
                       Show Spec
                     </button>
                   )}
-                  {/* File Tab */}
-                  <div className={`h-8 px-3 border-r ${isDark ? 'border-zinc-800 bg-zinc-950 text-zinc-200' : 'border-zinc-200 bg-white text-zinc-900'} flex items-center space-x-2 text-xs font-mono font-medium border-t-2 border-t-blue-500`}>
+                  <div className="h-8 px-3 border-r border-zinc-800 bg-zinc-950 text-zinc-200 flex items-center space-x-2 text-xs font-mono font-medium border-t-2 border-t-blue-500">
                     <Icons.FileCode />
                     <span>processor.js</span>
                     {isCodeStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Modified since last test execution"></span>}
                   </div>
                 </div>
 
-                {/* Quick Actions */}
                 <div className="flex items-center space-x-2 pr-1">
                   {isCodeStale ? (
                     <span className="text-[10px] font-mono text-amber-400 flex items-center space-x-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
@@ -636,7 +690,7 @@ function VibeXPlatform() {
                     disabled={isExecuting}
                     className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 border border-zinc-700/80 px-2.5 py-1 rounded text-[11px] font-mono flex items-center space-x-1.5 transition">
                     <Icons.Play />
-                    <span>{isExecuting ? "Executing..." : "Run Tests (⌘↵)"}</span>
+                    <span>{isExecuting ? "Executing..." : "Run Tests"}</span>
                   </button>
 
                   <button
@@ -647,37 +701,32 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* Code Buffer with Integrated Line Number Gutter */}
               <div className="flex-1 flex overflow-hidden font-mono text-[12px] leading-5 relative">
-                {/* Gutter */}
-                <div className={`w-10 shrink-0 select-none text-right pr-3 pt-3 ${isDark ? 'bg-zinc-950 text-zinc-600 border-zinc-900' : 'bg-zinc-100 text-zinc-400 border-zinc-200'} border-r font-mono text-[11px]`}>
+                <div className="w-10 shrink-0 select-none text-right pr-3 pt-3 bg-zinc-950 text-zinc-600 border-zinc-900 border-r font-mono text-[11px]">
                   {lineNumbers.map(n => (
                     <div key={n}>{n}</div>
                   ))}
                 </div>
 
-                {/* Editor Textarea */}
                 <textarea
                   value={code}
                   onChange={e => setCode(e.target.value)}
-                  className={`flex-1 p-3 font-mono leading-5 ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-white text-zinc-900'} focus:outline-none resize-none border-none selection:bg-blue-600/30`}
+                  className="flex-1 p-3 font-mono leading-5 bg-zinc-950 text-zinc-200 focus:outline-none resize-none border-none selection:bg-blue-600/30"
                   spellCheck={false}
                 />
               </div>
 
-              {/* Bottom Test Explorer / Diagnostic Console */}
-              <div className={`h-48 border-t ${isDark ? 'border-zinc-800 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-50'} flex flex-col overflow-hidden`}>
-                <div className={`h-7 px-3 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} flex items-center justify-between text-[11px] font-mono select-none`}>
+              {/* Bottom Test Suite Runner */}
+              <div className="h-48 border-t border-zinc-800 bg-zinc-900/60 flex flex-col overflow-hidden">
+                <div className="h-7 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono select-none">
                   <div className="flex items-center space-x-3">
                     <span className="font-semibold text-zinc-300">TEST SUITE RUNNER</span>
                     <span className="text-zinc-500">•</span>
                     <span className="text-zinc-500">Node.js VM Isolation (1500ms hard timeout)</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={passedTestsCount === totalTestsCount ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-                      {passedTestsCount} / {totalTestsCount} Passing
-                    </span>
-                  </div>
+                  <span className={passedTestsCount === totalTestsCount ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                    {passedTestsCount} / {totalTestsCount} Passing
+                  </span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/40 font-mono text-[11px]">
@@ -703,7 +752,7 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* Draggable Gutter Handle */}
+            {/* Draggable Divider */}
             <div
               onMouseDown={() => setIsDragging(true)}
               className={`w-1.5 hover:w-1.5 active:w-1.5 cursor-col-resize relative flex items-center justify-center transition-colors z-20 select-none group ${isDragging ? 'bg-blue-600' : 'bg-zinc-800/80 hover:bg-blue-500'}`}>
@@ -712,9 +761,9 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* Right: AI Pair Programmer (Copilot / Cursor Style) */}
-            <div style={{ width: `${chatWidth}px` }} className={`shrink-0 flex flex-col ${isDark ? 'bg-zinc-900/70 border-zinc-800' : 'bg-zinc-50 border-zinc-200'} border-l font-sans overflow-hidden`}>
-              <div className={`h-8 border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'} px-3 flex items-center justify-between text-xs select-none`}>
+            {/* Right: AI Pair Programmer with Rich Structured Messages */}
+            <div style={{ width: `${chatWidth}px` }} className="shrink-0 flex flex-col bg-zinc-900/70 border-zinc-800 border-l font-sans overflow-hidden">
+              <div className="h-8 border-b border-zinc-800 bg-zinc-900 px-3 flex items-center justify-between text-xs select-none">
                 <div className="flex items-center space-x-2 font-mono text-[11px] font-semibold text-zinc-300">
                   <Icons.Bot />
                   <span>AI ASSISTANT (NIM)</span>
@@ -727,20 +776,20 @@ function VibeXPlatform() {
               </div>
 
               {/* Action Chips */}
-              <div className={`p-2 border-b ${isDark ? 'border-zinc-800/80 bg-zinc-950/40' : 'border-zinc-200 bg-white'} flex gap-1.5 flex-wrap`}>
+              <div className="p-2 border-b border-zinc-800/80 bg-zinc-950/40 flex gap-1.5 flex-wrap">
                 <button
                   onClick={() => handleSendPrompt("Scaffold schema guard for missing sensorId")}
-                  className={`text-[10px] font-mono px-2 py-1 rounded border ${isDark ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700' : 'border-zinc-300 bg-zinc-100 text-zinc-700 hover:border-zinc-400'} transition`}>
+                  className="text-[10px] font-mono px-2 py-1 rounded border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700 transition">
                   + Schema Contract Guard
                 </button>
                 <button
                   onClick={() => handleSendPrompt("Fix floating point precision to 2 decimal places")}
-                  className={`text-[10px] font-mono px-2 py-1 rounded border ${isDark ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700' : 'border-zinc-300 bg-zinc-100 text-zinc-700 hover:border-zinc-400'} transition`}>
+                  className="text-[10px] font-mono px-2 py-1 rounded border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700 transition">
                   + 2-Decimal Float Fix
                 </button>
               </div>
 
-              {/* Conversation Log */}
+              {/* Structured Message Feed */}
               <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed">
                 {chatLog.map((m, i) => (
                   <div key={i} className="space-y-1">
@@ -748,8 +797,8 @@ function VibeXPlatform() {
                       <span>{m.sender === 'user' ? 'DEVELOPER' : 'NVIDIA_NIM::LLAMA_3.1'}</span>
                       <span>{m.timestamp}</span>
                     </div>
-                    <div className={`p-2.5 rounded border text-[11px] ${m.sender === 'user' ? (isDark ? 'bg-zinc-800/90 border-zinc-700 text-zinc-100' : 'bg-zinc-200 border-zinc-300 text-zinc-900') : (isDark ? 'bg-zinc-900/60 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-800')}`}>
-                      {m.text}
+                    <div className={`p-2.5 rounded border text-[11px] ${m.sender === 'user' ? 'bg-zinc-800/90 border-zinc-700 text-zinc-100' : 'bg-zinc-900/60 border-zinc-800 text-zinc-300'}`}>
+                      <FormattedMessage text={m.text} onStageCode={stageCodeSnippet} />
                     </div>
                   </div>
                 ))}
@@ -761,7 +810,7 @@ function VibeXPlatform() {
                   </div>
                 )}
 
-                {/* Professional GitHub-style Unified Diff Inspector */}
+                {/* Unified Diff Inspector */}
                 {stagedDiff && (
                   <div className="rounded border border-blue-500/40 bg-zinc-950 text-zinc-200 font-mono text-xs overflow-hidden mt-3 shadow-lg">
                     <div className="bg-zinc-900 px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between text-[10px]">
@@ -796,15 +845,15 @@ function VibeXPlatform() {
                 )}
               </div>
 
-              {/* Prompt Input Box */}
-              <div className={`p-2.5 border-t ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'} flex items-center space-x-2`}>
+              {/* Chat Input */}
+              <div className="p-2.5 border-t border-zinc-800 bg-zinc-900 flex items-center space-x-2">
                 <input
                   type="text"
                   value={promptInput}
                   onChange={e => setPromptInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSendPrompt()}
                   placeholder="Inquire or request code scaffold..."
-                  className={`flex-1 rounded border ${isDark ? 'border-zinc-800 bg-zinc-950 text-zinc-100 placeholder:text-zinc-600' : 'border-zinc-300 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400'} px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 font-sans`}
+                  className="flex-1 rounded border border-zinc-800 bg-zinc-950 text-zinc-100 placeholder:text-zinc-600 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 font-sans"
                 />
                 <button
                   onClick={() => handleSendPrompt()}
@@ -816,8 +865,7 @@ function VibeXPlatform() {
           </div>
         )}
 
-        {/* Global Bottom IDE Status Bar */}
-        <footer className={`h-6 border-t ${isDark ? 'border-zinc-800/80 bg-zinc-950 text-zinc-500' : 'border-zinc-200 bg-zinc-100 text-zinc-500'} px-4 flex items-center justify-between text-[10px] font-mono select-none`}>
+        <footer className="h-6 border-t border-zinc-800/80 bg-zinc-950 text-zinc-500 px-4 flex items-center justify-between text-[10px] font-mono select-none">
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -835,12 +883,10 @@ function VibeXPlatform() {
     );
   }
 
-  // ==========================================================================
-  // VIEW 3: RECRUITER PORTAL
-  // ==========================================================================
+  // Recruiter View
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
-      <header className={`h-12 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-6 flex items-center justify-between shrink-0 shadow-sm`}>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans text-xs antialiased">
+      <header className="h-12 border-b border-zinc-800 bg-zinc-900/90 px-6 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-3">
           <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white">vibeX</span>
           <span className="font-bold text-xs tracking-tight">Recruiter Intelligence Hub</span>
@@ -850,14 +896,11 @@ function VibeXPlatform() {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setRecruiterView('overview')}
-            className={`px-2.5 py-1 rounded text-xs font-medium transition ${recruiterView === 'overview' ? (isDark ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-zinc-900') : 'text-zinc-500 hover:text-zinc-300'}`}>
+            className={`px-2.5 py-1 rounded text-xs font-medium transition ${recruiterView === 'overview' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
             Pipeline
           </button>
 
-          <button
-            onClick={toggleTheme}
-            className={`p-1.5 rounded border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-400' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-600'} transition`}
-            title="Toggle color theme">
+          <button onClick={toggleTheme} className="p-1.5 rounded border border-zinc-800 text-zinc-400 hover:text-white transition">
             {isDark ? <Icons.Sun /> : <Icons.Moon />}
           </button>
 
@@ -877,8 +920,8 @@ function VibeXPlatform() {
             <p className="text-xs text-zinc-500 mt-0.5">Auditable candidate submissions stored in Neon PostgreSQL.</p>
           </div>
 
-          <div className={`rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm overflow-hidden`}>
-            <div className={`px-4 py-2.5 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} font-mono text-[10px] text-zinc-500 uppercase tracking-wider`}>
+          <div className="rounded-lg border bg-zinc-900/60 border-zinc-800 shadow-sm overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-zinc-800 font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
               Verified Assessment Submissions
             </div>
             <div className="divide-y divide-zinc-800/40 text-xs">
@@ -917,7 +960,7 @@ function VibeXPlatform() {
 
           {selectedReport && (
             <div className="space-y-5">
-              <div className={`p-5 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} flex items-center justify-between`}>
+              <div className="p-5 rounded-lg border bg-zinc-900/60 border-zinc-800 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-mono uppercase text-blue-400 font-bold">Candidate Assessment Report</span>
                   <h1 className="text-xl font-bold mt-0.5 tracking-tight">{selectedReport.candidate_name}</h1>
@@ -929,21 +972,20 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* 3-Tier Hierarchy */}
               <div className="space-y-3">
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1.5`}>
+                <div className="p-4 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">Tier 1: Observed Facts (Raw Telemetry)</div>
                   <p className="text-xs text-zinc-400 font-mono">Tests Passed: {selectedReport.observed_facts?.testsPassed || "4 of 4"}</p>
                   <p className="text-xs text-zinc-400 font-mono">AI Interactions: {selectedReport.observed_facts?.aiQueriesDispatched || 2}</p>
                 </div>
 
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1.5`}>
+                <div className="p-4 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-purple-400 font-bold">Tier 2: Evidence Interpretation</div>
                   <p className="text-xs text-zinc-400">Scrutiny Index: {selectedReport.interpretations?.codeScrutiny || "High verification rigor"}</p>
                   <p className="text-xs text-zinc-400">Defensive Validation: {selectedReport.interpretations?.defensiveValidation || "Enforced schema guards before execution"}</p>
                 </div>
 
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1.5`}>
+                <div className="p-4 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Tier 3: Rubric Judgment</div>
                   <p className="text-xs text-zinc-300 leading-relaxed">{selectedReport.rubric_evaluation}</p>
                 </div>

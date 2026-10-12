@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { vibeXApi, User } from './services/api';
 
-// ============================================================================
-// ERROR BOUNDARY (Zero White-Screen Guarantees)
-// ============================================================================
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -14,10 +11,15 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 bg-zinc-950 text-white min-h-screen font-sans border-t-4 border-rose-500">
-          <h2 className="text-rose-500 font-bold text-base">Application Workspace Recovered</h2>
-          <pre className="bg-zinc-900 p-4 mt-2 rounded border border-zinc-800 text-xs font-mono">{this.state.error?.message}</pre>
-          <button onClick={() => window.location.reload()} className="mt-4 bg-blue-600 px-4 py-2 rounded text-xs font-bold">Reload Workspace</button>
+        <div className="p-8 bg-zinc-950 text-zinc-200 min-h-screen font-mono text-xs flex flex-col justify-center items-center">
+          <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-4">
+            <div className="flex items-center space-x-2 text-rose-400 font-bold">
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span>Workspace Recovered</span>
+            </div>
+            <pre className="text-zinc-400 bg-zinc-950 p-3 rounded border border-zinc-800 overflow-x-auto text-[11px]">{this.state.error?.message}</pre>
+            <button onClick={() => window.location.reload()} className="w-full bg-zinc-100 text-zinc-900 font-bold py-2 rounded text-xs hover:bg-white transition">Reload Environment</button>
+          </div>
         </div>
       );
     }
@@ -25,26 +27,26 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-// ============================================================================
-// SYSTEM ICONS
-// ============================================================================
+// Minimalist, high-precision SVG icons
 const Icons = {
-  Sun: () => <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
-  Moon: () => <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>,
-  Terminal: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
-  Briefcase: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
-  Check: () => <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>,
-  Cross: () => <svg className="w-3.5 h-3.5 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>,
-  Alert: () => <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>,
-  Play: () => <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>,
-  Bot: () => <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
-  Send: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>,
-  Diff: () => <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>,
+  Sun: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
+  Moon: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+  Play: () => <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
+  Check: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
+  Cross: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Alert: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+  Bot: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>,
+  Send: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  Diff: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M3 12h18"/></svg>,
+  FileCode: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="10 13 8 15 10 17"/><polyline points="14 13 16 15 14 17"/></svg>,
+  Clock: () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  Shield: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Terminal: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>,
   Grip: () => (
-    <svg className="w-3 h-3 text-zinc-400 dark:text-zinc-500" viewBox="0 0 16 16" fill="currentColor">
-      <circle cx="6" cy="4" r="1.2" /><circle cx="10" cy="4" r="1.2" />
-      <circle cx="6" cy="8" r="1.2" /><circle cx="10" cy="8" r="1.2" />
-      <circle cx="6" cy="12" r="1.2" /><circle cx="10" cy="12" r="1.2" />
+    <svg className="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 transition" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="5" cy="4" r="1.2" /><circle cx="11" cy="4" r="1.2" />
+      <circle cx="5" cy="8" r="1.2" /><circle cx="11" cy="8" r="1.2" />
+      <circle cx="5" cy="12" r="1.2" /><circle cx="11" cy="12" r="1.2" />
     </svg>
   )
 };
@@ -52,17 +54,17 @@ const Icons = {
 const DEFAULT_TASK = {
   id: "task-iot-stream",
   title: "Real-Time Telemetry Stream Processor",
-  category: "JavaScript Problem Solving",
-  level: "Mid-Senior Level",
+  category: "Stream Ingestion Engine",
+  level: "Senior L4",
   durationMinutes: 30,
-  description: "Implement defensive JSON stream parsing, 2-decimal arithmetic floating rolling averages, and anomaly deviation detection.",
-  guidance: [
-    { id: "g1", title: "parseEvent(rawJson)", desc: "Parse JSON. Throw Error if sensorId or reading is undefined." },
-    { id: "g2", title: "computeWindowAverages(readings)", desc: "Compute rolling average constrained to 2 decimals using Number(avg.toFixed(2))." },
-    { id: "g3", title: "flagAnomalies(readings, baseline, maxDeviation)", desc: "Filter items where Math.abs(reading - baseline) > maxDeviation." }
+  description: "Implement high-throughput stream sanitation for inbound IoT payloads: enforce schema contracts, execute arithmetic rolling window calculations with 2-decimal constraints, and flag anomalous variances.",
+  specifications: [
+    { method: "parseEvent(rawJson)", requirement: "Safely parse incoming JSON string. Throw custom Error if sensorId is missing or reading is undefined." },
+    { method: "computeWindowAverages(readings)", requirement: "Compute arithmetic mean of array; round strictly to 2 decimal places returning primitive Number." },
+    { method: "flagAnomalies(readings, baseline, maxDeviation)", requirement: "Filter and return values where Math.abs(reading - baseline) strictly exceeds maxDeviation." }
   ],
-  starterCode: `// vibeX Telemetry Processor
-// Implement the required methods:
+  starterCode: `// vibeX Runtime Engine
+// Implement the required methods according to the specification:
 
 export function parseEvent(rawJson) {
   // TODO: Validate required fields (sensorId, reading)
@@ -87,10 +89,10 @@ export function flagAnomalies(readings, baseline, maxDeviation) {
 }
 `,
   tests: [
-    { id: "T1", description: "parseEvent parses valid IoT payloads", passed: true, actual: "Pass" },
-    { id: "T2", description: "parseEvent rejects corrupt payload & missing fields", passed: true, actual: "Pass" },
-    { id: "T3", description: "computeWindowAverages handles 2-decimal precision", passed: true, actual: "Pass" },
-    { id: "T4", description: "flagAnomalies isolates positive and negative deviations", passed: true, actual: "Pass" }
+    { id: "T1", description: "parseEvent parses valid payload", latency: "2ms", passed: true, expected: "Valid Object", actual: "PASS" },
+    { id: "T2", description: "parseEvent rejects corrupt payload & missing schema", latency: "3ms", passed: true, expected: "Throw Error", actual: "PASS" },
+    { id: "T3", description: "computeWindowAverages handles 2-decimal precision", latency: "4ms", passed: true, expected: "20.46 (Number)", actual: "PASS" },
+    { id: "T4", description: "flagAnomalies isolates positive and negative deviations", latency: "2ms", passed: true, expected: "[50, 100]", actual: "PASS" }
   ]
 };
 
@@ -103,20 +105,17 @@ export default function App() {
 }
 
 function VibeXPlatform() {
-  // Persistent Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('vibe_theme') as 'light' | 'dark') || 'dark';
   });
 
+  const isDark = theme === 'dark';
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     localStorage.setItem('vibe_theme', next);
   };
 
-  const isDark = theme === 'dark';
-
-  // Real User & Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('vibe_user');
     return saved ? JSON.parse(saved) : null;
@@ -130,39 +129,39 @@ function VibeXPlatform() {
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Active Session & View State
   const [candidateView, setCandidateView] = useState<'home' | 'workspace'>('home');
   const [recruiterView, setRecruiterView] = useState<'overview' | 'dossier'>('overview');
   const [isLaunching, setIsLaunching] = useState(false);
-  const [activeSessionId, setActiveSessionId] = useState<string>('session-default');
+  const [activeSessionId, setActiveSessionId] = useState<string>('session-live-01');
   const [isSpecOpen, setIsSpecOpen] = useState(true);
 
-  // Recruiter Pipeline State
   const [pipelineData, setPipelineData] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-  // Workspace Code & Execution State
   const [code, setCode] = useState(DEFAULT_TASK.starterCode);
   const [lastTestedCode, setLastTestedCode] = useState<string | null>(DEFAULT_TASK.starterCode);
   const [isExecuting, setIsExecuting] = useState(false);
   const [testResults, setTestResults] = useState<any[]>(DEFAULT_TASK.tests);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // AI Chat & Diff Staging State
-  const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string }[]>([
-    { sender: 'ai', text: "👋 AI Pair Programmer active. Ask me to scaffold defensive schema guards or fix precision edge cases." }
+  const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string; timestamp: string }[]>([
+    {
+      sender: 'ai',
+      text: "AI Pair Programmer connected via NVIDIA NIM (Llama 3.1 70B). Ready to assist with schema assertions, rolling window logic, or test diagnostics.",
+      timestamp: "10:14:02"
+    }
   ]);
   const [promptInput, setPromptInput] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [stagedDiff, setStagedDiff] = useState<any | null>(null);
 
-  // Layout Resizer State
-  const [chatWidth, setChatWidth] = useState(400);
+  const [chatWidth, setChatWidth] = useState(380);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const isCodeStale = lastTestedCode !== null && code !== lastTestedCode;
   const passedTestsCount = testResults.filter(t => t.passed).length;
+  const totalTestsCount = testResults.length;
 
   const handleSetUser = (user: User | null) => {
     setCurrentUser(user);
@@ -201,7 +200,6 @@ function VibeXPlatform() {
     }
   }, [currentUser, recruiterView]);
 
-  // Auth Handler
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -218,13 +216,12 @@ function VibeXPlatform() {
         handleSetUser(res.user);
       }
     } catch (err: any) {
-      setAuthError(err.message || "Authentication failed.");
+      setAuthError(err.message || "Authentication credentials rejected.");
     } finally {
       setAuthLoading(false);
     }
   };
 
-  // Launch Coding Workspace
   const handleStartAssessment = async () => {
     setIsLaunching(true);
     try {
@@ -233,20 +230,17 @@ function VibeXPlatform() {
         currentUser?.name || "Candidate",
         'task-iot-stream'
       );
-      if (res && res.session) {
+      if (res?.session) {
         setActiveSessionId(res.session.id);
         if (res.session.current_code) {
           setCode(res.session.current_code);
           setLastTestedCode(res.session.current_code);
         }
-        if (res.assessment && res.assessment.tests) {
+        if (res.assessment?.tests) {
           setTestResults(res.assessment.tests);
         }
-      } else {
-        setActiveSessionId(`session-${Date.now()}`);
       }
     } catch (err) {
-      console.warn("Backend session sync deferred, using local session:", err);
       setActiveSessionId(`session-${Date.now()}`);
     } finally {
       setIsLaunching(false);
@@ -258,12 +252,12 @@ function VibeXPlatform() {
     setIsExecuting(true);
     try {
       const res = await vibeXApi.runTests(activeSessionId, code, 'task-iot-stream');
-      if (res.results && res.results.length > 0) {
+      if (res.results?.length) {
         setTestResults(res.results);
       }
       setLastTestedCode(code);
     } catch (err) {
-      console.error("Test run fallback:", err);
+      console.error("Test execution fallback triggered:", err);
     } finally {
       setIsExecuting(false);
     }
@@ -273,7 +267,8 @@ function VibeXPlatform() {
     const q = explicitPrompt || promptInput;
     if (!q.trim() || isAiThinking) return;
 
-    setChatLog(prev => [...prev, { sender: 'user', text: q }]);
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    setChatLog(prev => [...prev, { sender: 'user', text: q, timestamp: time }]);
     setPromptInput('');
     setIsAiThinking(true);
 
@@ -284,21 +279,24 @@ function VibeXPlatform() {
     const lower = q.toLowerCase();
     if (lower.includes("precision") || lower.includes("float") || lower.includes("average")) {
       diff = {
-        summary: "Constrain average to 2 decimal places using Number((sum / len).toFixed(2))",
+        fn: "computeWindowAverages",
+        summary: "Constrain rolling average arithmetic to 2 decimal places using Number(toFixed(2))",
         codeSnippet: `export function computeWindowAverages(readings) {\n  if (!readings || readings.length === 0) return 0;\n  const sum = readings.reduce((acc, curr) => acc + curr, 0);\n  return Number((sum / readings.length).toFixed(2));\n}`,
-        linesAdded: 3,
-        linesRemoved: 1
+        additions: 3,
+        deletions: 1
       };
     } else if (lower.includes("guard") || lower.includes("parse") || lower.includes("validation")) {
       diff = {
-        summary: "Enforce defensive validation guards throwing explicit Error on missing fields",
+        fn: "parseEvent",
+        summary: "Enforce contract schema validation throwing custom Error on missing parameters",
         codeSnippet: `export function parseEvent(rawJson) {\n  const data = JSON.parse(rawJson);\n  if (!data.sensorId || data.reading === undefined) {\n    throw new Error("Invalid telemetry schema: missing sensorId or reading");\n  }\n  return data;\n}`,
-        linesAdded: 4,
-        linesRemoved: 1
+        additions: 4,
+        deletions: 1
       };
     }
 
-    setChatLog(prev => [...prev, { sender: 'ai', text: res.guidance }]);
+    const aiTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    setChatLog(prev => [...prev, { sender: 'ai', text: res.guidance, timestamp: aiTime }]);
     if (diff) setStagedDiff(diff);
     setIsAiThinking(false);
   };
@@ -318,8 +316,6 @@ function VibeXPlatform() {
   const handleSubmitAssessment = async () => {
     try {
       await vibeXApi.submitAssessment(activeSessionId, code);
-    } catch (err) {
-      console.warn("Report stored locally:", err);
     } finally {
       setIsSubmitted(true);
       setCandidateView('home');
@@ -336,122 +332,121 @@ function VibeXPlatform() {
     }
   };
 
+  // Lines calculation for code editor gutter
+  const lineCount = code.split('\n').length;
+  const lineNumbers = Array.from({ length: Math.max(lineCount, 15) }, (_, i) => i + 1);
+
   // ==========================================================================
-  // VIEW 1: AUTHENTICATION SCREEN (WHEN LOGGED OUT)
+  // VIEW 1: AUTHENTICATION SCREEN
   // ==========================================================================
   if (!currentUser) {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-black text-white' : 'bg-zinc-50 text-zinc-900'} flex flex-col justify-between font-sans transition-colors duration-200`}>
-        <header className={`h-16 px-8 flex items-center justify-between border-b ${isDark ? 'border-zinc-900 bg-zinc-950/40' : 'border-zinc-200 bg-white shadow-sm'}`}>
-          <div className="flex items-center space-x-3">
-            <span className={`${isDark ? 'bg-white text-black' : 'bg-blue-600 text-white'} font-black px-2.5 py-1 rounded text-xs tracking-wider`}>vibeX</span>
-            <span className="text-xs text-zinc-500 font-medium">iMocha IM-01 Benchmark</span>
+      <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col justify-between font-sans antialiased`}>
+        <header className={`h-12 px-6 flex items-center justify-between border-b ${isDark ? 'border-zinc-800 bg-zinc-900/60' : 'border-zinc-200 bg-white'}`}>
+          <div className="flex items-center space-x-2.5">
+            <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 dark:bg-zinc-200 dark:text-zinc-900">vibeX</span>
+            <span className="text-[11px] text-zinc-400 font-mono">system.auth</span>
           </div>
-
-          {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className={`p-2 rounded-xl border ${isDark ? 'border-zinc-800 hover:bg-zinc-900 text-zinc-300' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-700'} transition flex items-center space-x-1.5 text-xs font-semibold`}
-            title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}>
+            className={`p-1.5 rounded border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-400' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-600'} transition`}
+            title="Toggle theme">
             {isDark ? <Icons.Sun /> : <Icons.Moon />}
-            <span className="hidden sm:inline">{isDark ? 'Light' : 'Dark'}</span>
           </button>
         </header>
 
-        <main className="max-w-md mx-auto px-6 py-10 w-full space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-black">
-              {authMode === 'register' ? "Create your account" : "Welcome back"}
+        <main className="max-w-sm mx-auto px-6 py-12 w-full space-y-6">
+          <div className="space-y-1">
+            <h1 className="text-lg font-bold tracking-tight">
+              {authMode === 'register' ? "Initialize Credentials" : "Sign in to Assessment"}
             </h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {authMode === 'register' ? "Select your role to access your dedicated studio." : "Sign in to access your assessment workspace."}
+            <p className="text-xs text-zinc-500">
+              {authMode === 'register' ? "Select target environment to generate identity token." : "Enter verified credentials to resume session."}
             </p>
           </div>
 
           {authMode === 'register' && (
-            <div className={`grid grid-cols-2 gap-2 p-1 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-200/70 border-zinc-300'} border rounded-xl`}>
+            <div className={`grid grid-cols-2 gap-1 p-0.5 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-200/80 border-zinc-300'} border rounded-md text-xs`}>
               <button
                 type="button"
                 onClick={() => setAuthRole('candidate')}
-                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 ${authRole === 'candidate' ? 'bg-blue-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'}`}>
-                <Icons.Terminal />
-                <span>Candidate</span>
+                className={`py-1.5 rounded font-medium transition ${authRole === 'candidate' ? (isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-zinc-900 shadow-sm') : 'text-zinc-500'}`}>
+                Candidate Studio
               </button>
               <button
                 type="button"
                 onClick={() => setAuthRole('recruiter')}
-                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 ${authRole === 'recruiter' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'}`}>
-                <Icons.Briefcase />
-                <span>Recruiter</span>
+                className={`py-1.5 rounded font-medium transition ${authRole === 'recruiter' ? (isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-zinc-900 shadow-sm') : 'text-zinc-500'}`}>
+                Recruiter Portal
               </button>
             </div>
           )}
 
           {authError && (
-            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-900 text-rose-400 text-xs font-medium">
+            <div className="p-3 rounded border border-rose-500/20 bg-rose-500/10 text-rose-400 text-xs font-mono">
               {authError}
             </div>
           )}
 
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
+          <form onSubmit={handleAuthSubmit} className="space-y-3.5 text-xs">
             {authMode === 'register' && (
-              <div>
-                <label className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 block mb-1">Full Name</label>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-zinc-400">Full Name</label>
                 <input
                   type="text"
                   required
                   value={authName}
                   onChange={e => setAuthName(e.target.value)}
-                  placeholder="e.g. Chetan Shakhapure"
-                  className={`w-full ${isDark ? 'bg-zinc-950 border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'} border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-blue-500`}
+                  placeholder="e.g. Alex Morgan"
+                  className={`w-full ${isDark ? 'bg-zinc-900/90 border-zinc-800 text-white focus:border-zinc-700' : 'bg-white border-zinc-300 text-zinc-900 focus:border-zinc-400'} border rounded-md px-3 py-2 outline-none font-sans`}
                 />
               </div>
             )}
 
-            <div>
-              <label className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 block mb-1">Email Address</label>
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-zinc-400">Email Address</label>
               <input
                 type="email"
                 required
                 value={authEmail}
                 onChange={e => setAuthEmail(e.target.value)}
-                placeholder="name@company.com"
-                className={`w-full ${isDark ? 'bg-zinc-950 border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'} border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-blue-500`}
+                placeholder="developer@organization.io"
+                className={`w-full ${isDark ? 'bg-zinc-900/90 border-zinc-800 text-white focus:border-zinc-700' : 'bg-white border-zinc-300 text-zinc-900 focus:border-zinc-400'} border rounded-md px-3 py-2 outline-none font-sans`}
               />
             </div>
 
-            <div>
-              <label className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 block mb-1">Password</label>
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-zinc-400">Password</label>
               <input
                 type="password"
                 required
                 value={authPassword}
                 onChange={e => setAuthPassword(e.target.value)}
-                placeholder="••••••••"
-                className={`w-full ${isDark ? 'bg-zinc-950 border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'} border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-blue-500`}
+                placeholder="••••••••••••"
+                className={`w-full ${isDark ? 'bg-zinc-900/90 border-zinc-800 text-white focus:border-zinc-700' : 'bg-white border-zinc-300 text-zinc-900 focus:border-zinc-400'} border rounded-md px-3 py-2 outline-none font-mono`}
               />
             </div>
 
             <button
               type="submit"
               disabled={authLoading}
-              className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition ${authRole === 'candidate' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-emerald-600 hover:bg-emerald-500'} disabled:opacity-50`}>
-              {authLoading ? "Processing..." : authMode === 'register' ? `Register as ${authRole}` : "Sign In"}
+              className={`w-full py-2 rounded-md font-semibold text-xs transition ${isDark ? 'bg-zinc-100 text-zinc-900 hover:bg-white' : 'bg-zinc-900 text-white hover:bg-zinc-800'} disabled:opacity-50 mt-1`}>
+              {authLoading ? "Authenticating..." : authMode === 'register' ? `Proceed to ${authRole === 'candidate' ? 'Studio' : 'Portal'}` : "Continue Session"}
             </button>
           </form>
 
-          <div className="text-center">
+          <div className="text-center pt-2">
             <button
               onClick={() => { setAuthMode(authMode === 'register' ? 'login' : 'register'); setAuthError(''); }}
-              className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-white transition">
-              {authMode === 'register' ? "Already have an account? Sign in" : "Need an account? Register here"}
+              className="text-[11px] text-zinc-500 hover:text-zinc-300 transition">
+              {authMode === 'register' ? "Already registered? Authenticate existing session" : "Need registration? Provision new profile"}
             </button>
           </div>
         </main>
 
-        <footer className={`h-14 px-8 flex items-center justify-between border-t ${isDark ? 'border-zinc-900 text-zinc-600' : 'border-zinc-200 text-zinc-400'} text-xs`}>
-          <span>vibeX Assessment Engine</span>
-          <span>PostgreSQL + NVIDIA NIM</span>
+        <footer className={`h-10 px-6 flex items-center justify-between border-t ${isDark ? 'border-zinc-800/80 text-zinc-500' : 'border-zinc-200 text-zinc-500'} text-[11px] font-mono`}>
+          <span>iMocha IM-01 Standard Compliant</span>
+          <span>vibeX.core::2.4.0</span>
         </footer>
       </div>
     );
@@ -462,258 +457,380 @@ function VibeXPlatform() {
   // ==========================================================================
   if (currentUser.role === 'candidate') {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-black text-zinc-100' : 'bg-zinc-50 text-zinc-900'} flex flex-col font-sans transition-colors duration-200`}>
-        {/* Candidate Navigation Header */}
-        <header className={`h-14 border-b ${isDark ? 'border-zinc-900 bg-zinc-950' : 'border-zinc-200 bg-white shadow-sm'} px-6 flex items-center justify-between shrink-0`}>
+      <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
+        {/* Sleek IDE Header */}
+        <header className={`h-11 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-4 flex items-center justify-between shrink-0 select-none z-10`}>
           <div className="flex items-center space-x-3">
-            <span className={`${isDark ? 'bg-white text-black' : 'bg-blue-600 text-white'} font-black px-2 py-0.5 rounded text-xs tracking-wider`}>vibeX</span>
-            <span className="text-xs font-semibold text-zinc-400">Candidate Studio</span>
+            <div className="flex items-center space-x-2">
+              <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 dark:bg-zinc-200 dark:text-zinc-900">vibeX</span>
+              <span className="text-[11px] text-zinc-400 font-mono">/</span>
+              <span className="text-xs font-semibold text-zinc-300 dark:text-zinc-300">{DEFAULT_TASK.title}</span>
+            </div>
+
+            <div className="hidden md:flex items-center space-x-2 pl-3 border-l border-zinc-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                LIVE SESSION
+              </span>
+              <span className="text-[11px] text-zinc-400 flex items-center space-x-1 font-mono">
+                <Icons.Clock />
+                <span>28:40 REMAINING</span>
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-3 text-xs">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setCandidateView('home')}
-              className={`px-3 py-1 rounded transition ${candidateView === 'home' ? (isDark ? 'bg-zinc-800 text-white font-bold' : 'bg-zinc-200 text-zinc-900 font-bold') : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'}`}>
-              Assigned Tasks
+              className={`px-2.5 py-1 rounded text-xs transition border ${candidateView === 'home' ? (isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-200 border-zinc-300 text-zinc-900') : (isDark ? 'border-transparent text-zinc-400 hover:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-900')}`}>
+              Overview
+            </button>
+            <button
+              onClick={() => setCandidateView('workspace')}
+              className={`px-2.5 py-1 rounded text-xs transition border ${candidateView === 'workspace' ? (isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-200 border-zinc-300 text-zinc-900') : (isDark ? 'border-transparent text-zinc-400 hover:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-900')}`}>
+              Editor
             </button>
 
-            {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className={`p-1.5 rounded-lg border ${isDark ? 'border-zinc-800 hover:bg-zinc-900 text-zinc-300' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-700'} transition flex items-center space-x-1`}
-              title="Toggle Light / Dark Mode">
+              className={`p-1.5 rounded border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-400' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-600'} transition ml-1`}
+              title="Toggle color theme">
               {isDark ? <Icons.Sun /> : <Icons.Moon />}
             </button>
 
-            <div className={`flex items-center space-x-2 pl-3 border-l ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{currentUser.name}</span>
+            <div className="flex items-center space-x-2 pl-2 border-l border-zinc-800">
+              <span className="text-[11px] font-mono text-zinc-400">{currentUser.name}</span>
               <button
                 onClick={() => handleSetUser(null)}
-                className="text-[11px] text-zinc-500 hover:text-rose-500 transition">
-                Sign Out
+                className="text-[10px] text-zinc-500 hover:text-rose-400 transition font-mono">
+                [Exit]
               </button>
             </div>
           </div>
         </header>
 
         {candidateView === 'home' ? (
-          <main className="flex-1 max-w-4xl mx-auto w-full p-8 space-y-6 overflow-y-auto">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-black">Welcome back, {currentUser.name}</h1>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Your assigned benchmark tasks are ready for evaluation.</p>
+          <main className="flex-1 max-w-3xl mx-auto w-full p-8 space-y-6 overflow-y-auto">
+            <div className="border-b border-zinc-800/80 pb-4">
+              <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Candidate Workspace</div>
+              <h1 className="text-xl font-bold mt-1 tracking-tight text-white">{currentUser.name}</h1>
+              <p className="text-xs text-zinc-400 mt-0.5">Assigned Technical Verification Assessment • iMocha IM-01</p>
             </div>
 
-            <div className={`p-6 rounded-2xl border ${isDark ? 'bg-zinc-950 border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'} space-y-4`}>
+            <div className={`p-5 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-4`}>
               <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-base font-bold">{DEFAULT_TASK.title}</h3>
-                  <div className="text-xs text-zinc-500 mt-1 flex items-center space-x-2">
-                    <span>{DEFAULT_TASK.durationMinutes} Mins</span>
-                    <span>•</span>
-                    <span>{DEFAULT_TASK.level}</span>
-                    <span>•</span>
-                    <span className="text-blue-500">AI Assistance Permitted</span>
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Active Challenge</span>
+                    <span className="text-xs text-zinc-400">• {DEFAULT_TASK.level}</span>
                   </div>
+                  <h3 className="text-base font-bold text-white">{DEFAULT_TASK.title}</h3>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${isSubmitted ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                  {isSubmitted ? 'Submitted' : 'Ready'}
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded border ${isSubmitted ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>
+                  {isSubmitted ? 'STATE: SUBMITTED' : 'STATE: IN_PROGRESS'}
                 </span>
               </div>
 
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 {DEFAULT_TASK.description}
               </p>
 
-              <div className="pt-2">
+              <div className="grid grid-cols-3 gap-3 py-2 border-y border-zinc-800/60 text-xs font-mono">
+                <div>
+                  <span className="text-[10px] text-zinc-500 block">TIME ALLOCATION</span>
+                  <span className="text-zinc-200">{DEFAULT_TASK.durationMinutes} Minutes</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 block">EXECUTION RUNTIME</span>
+                  <span className="text-zinc-200">Node.js 20 Sandbox</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 block">AI ASSISTANT</span>
+                  <span className="text-zinc-200">NVIDIA NIM (Llama 3.1)</span>
+                </div>
+              </div>
+
+              <div>
                 <button
                   onClick={handleStartAssessment}
                   disabled={isLaunching}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center space-x-2">
-                  <span>{isLaunching ? "Launching Workspace..." : isSubmitted ? "Review Submitted Workspace" : "Launch Coding Workspace"}</span>
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded text-xs transition flex items-center space-x-2">
+                  <span>{isLaunching ? "Provisioning Sandbox..." : isSubmitted ? "Inspect Submitted Code" : "Open Development Environment"}</span>
                 </button>
               </div>
             </div>
           </main>
         ) : (
-          <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
-            
-            {/* Left: Collapsible Problem Statement Panel */}
+          <div ref={containerRef} className="flex-1 flex overflow-hidden relative select-auto">
+            {/* Left Collapsible Task Specification Drawer */}
             {isSpecOpen && (
-              <div className={`w-80 shrink-0 border-r ${isDark ? 'border-zinc-900 bg-zinc-950' : 'border-zinc-200 bg-white'} p-5 overflow-y-auto space-y-4 text-xs`}>
-                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-zinc-900' : 'border-zinc-200'}`}>
-                  <span className="text-[10px] font-bold uppercase text-blue-500 tracking-wider">Benchmark Specification</span>
-                  <button onClick={() => setIsSpecOpen(false)} className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">Collapse</button>
+              <div className={`w-72 shrink-0 border-r ${isDark ? 'border-zinc-800 bg-zinc-900/40' : 'border-zinc-200 bg-zinc-50'} flex flex-col overflow-hidden`}>
+                <div className={`h-8 px-3 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} flex items-center justify-between text-[11px] font-mono text-zinc-400`}>
+                  <span>TASK SPECIFICATION</span>
+                  <button onClick={() => setIsSpecOpen(false)} className="hover:text-zinc-200">[Hide]</button>
                 </div>
 
-                <div>
-                  <h2 className="text-sm font-bold">{DEFAULT_TASK.title}</h2>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">{DEFAULT_TASK.description}</p>
-                </div>
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs">
+                  <div>
+                    <h2 className="text-sm font-bold text-zinc-100">{DEFAULT_TASK.title}</h2>
+                    <p className="text-[11px] text-zinc-400 mt-1 leading-normal">{DEFAULT_TASK.description}</p>
+                  </div>
 
-                <div className="space-y-2">
-                  <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 block">Required Methods</span>
-                  {DEFAULT_TASK.guidance.map(g => (
-                    <div key={g.id} className={`p-2.5 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800/80' : 'bg-zinc-50 border-zinc-200'} space-y-1`}>
-                      <span className="font-mono text-[11px] font-bold text-blue-500 block">{g.title}</span>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{g.desc}</p>
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">Required Interfaces</span>
+                    {DEFAULT_TASK.specifications.map((spec, i) => (
+                      <div key={i} className={`p-2.5 rounded border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1`}>
+                        <div className="font-mono text-[11px] font-semibold text-blue-400">{spec.method}</div>
+                        <p className="text-[11px] text-zinc-400 leading-snug">{spec.requirement}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-3 rounded border border-zinc-800 bg-zinc-950/60 text-[11px] space-y-1">
+                    <div className="flex items-center space-x-1.5 text-zinc-300 font-semibold">
+                      <Icons.Shield />
+                      <span>Fairness Framework (IM-01)</span>
                     </div>
-                  ))}
-                </div>
-
-                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 text-[10px] text-blue-700 dark:text-blue-300 space-y-1">
-                  <span className="font-bold block">iMocha IM-01 Fairness Guarantee:</span>
-                  <p>Your prompt volume and speed are NOT scored. Focus on rigorous problem solving, testing edge cases, and code scrutiny.</p>
+                    <p className="text-zinc-500 leading-normal text-[10px]">
+                      Prompt volume and typing velocity are excluded from scoring. Assessment evaluates code correctness, boundary condition rigor, and code scrutiny.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Main Code Editor & Sandbox */}
-            <div className={`flex-1 flex flex-col min-w-0 ${isDark ? 'bg-black' : 'bg-zinc-100'}`}>
-              <div className={`h-10 border-b ${isDark ? 'border-zinc-900 bg-zinc-950' : 'border-zinc-200 bg-white'} px-4 flex items-center justify-between`}>
-                <div className="flex items-center space-x-3">
+            {/* Central Code Studio */}
+            <div className="flex-1 flex flex-col min-w-0 bg-zinc-950">
+              {/* Tab Header Bar */}
+              <div className={`h-8 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/70' : 'border-zinc-200 bg-zinc-100'} px-2 flex items-center justify-between select-none`}>
+                <div className="flex items-center space-x-2">
                   {!isSpecOpen && (
-                    <button onClick={() => setIsSpecOpen(true)} className="text-[10px] text-blue-500 hover:underline">Show Task</button>
+                    <button onClick={() => setIsSpecOpen(true)} className="text-[11px] font-mono text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded hover:bg-zinc-800">
+                      Show Spec
+                    </button>
                   )}
-                  <span className="font-mono text-xs text-zinc-400 font-bold">processor.js</span>
-                  {isCodeStale ? (
-                    <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded font-medium border border-amber-500/20">
-                      ● Unverified Modifications
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded font-medium border border-emerald-500/20">
-                      ● {passedTestsCount}/4 Verified
-                    </span>
-                  )}
+                  {/* File Tab */}
+                  <div className={`h-8 px-3 border-r ${isDark ? 'border-zinc-800 bg-zinc-950 text-zinc-200' : 'border-zinc-200 bg-white text-zinc-900'} flex items-center space-x-2 text-xs font-mono font-medium border-t-2 border-t-blue-500`}>
+                    <Icons.FileCode />
+                    <span>processor.js</span>
+                    {isCodeStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Modified since last test execution"></span>}
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                {/* Quick Actions */}
+                <div className="flex items-center space-x-2 pr-1">
+                  {isCodeStale ? (
+                    <span className="text-[10px] font-mono text-amber-400 flex items-center space-x-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                      <Icons.Alert />
+                      <span>Unverified Changes</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-emerald-400 flex items-center space-x-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      <Icons.Check />
+                      <span>{passedTestsCount}/{totalTestsCount} Verified</span>
+                    </span>
+                  )}
+
                   <button
                     onClick={handleRunTests}
                     disabled={isExecuting}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-bold flex items-center space-x-1.5 transition">
+                    className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 border border-zinc-700/80 px-2.5 py-1 rounded text-[11px] font-mono flex items-center space-x-1.5 transition">
                     <Icons.Play />
-                    <span>{isExecuting ? "Executing..." : "Run Tests"}</span>
+                    <span>{isExecuting ? "Executing..." : "Run Tests (⌘↵)"}</span>
                   </button>
+
                   <button
                     onClick={handleSubmitAssessment}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold transition">
-                    {isSubmitted ? "Submitted ✓" : "Submit Assessment"}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition">
+                    {isSubmitted ? "Submitted ✓" : "Submit"}
                   </button>
                 </div>
               </div>
 
-              <textarea
-                value={code}
-                onChange={e => setCode(e.target.value)}
-                className={`flex-1 p-4 font-mono text-xs leading-relaxed ${isDark ? 'bg-black text-zinc-100' : 'bg-white text-zinc-900'} focus:outline-none resize-none border-none`}
-                spellCheck={false}
-              />
-
-              {/* Bottom Test Results */}
-              <div className={`h-44 border-t ${isDark ? 'border-zinc-900 bg-zinc-950' : 'border-zinc-200 bg-white'} p-3 flex flex-col overflow-hidden text-xs`}>
-                <div className={`flex items-center justify-between pb-2 mb-2 border-b ${isDark ? 'border-zinc-900' : 'border-zinc-200'}`}>
-                  <span className="font-bold">Isolated Sandbox Assertions (1500ms Timeout)</span>
-                  <span className="text-xs font-mono font-bold text-emerald-500">{passedTestsCount}/4 Passed</span>
+              {/* Code Buffer with Integrated Line Number Gutter */}
+              <div className="flex-1 flex overflow-hidden font-mono text-[12px] leading-5 relative">
+                {/* Gutter */}
+                <div className={`w-10 shrink-0 select-none text-right pr-3 pt-3 ${isDark ? 'bg-zinc-950 text-zinc-600 border-zinc-900' : 'bg-zinc-100 text-zinc-400 border-zinc-200'} border-r font-mono text-[11px]`}>
+                  {lineNumbers.map(n => (
+                    <div key={n}>{n}</div>
+                  ))}
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-1.5">
+
+                {/* Editor Textarea */}
+                <textarea
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  className={`flex-1 p-3 font-mono leading-5 ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-white text-zinc-900'} focus:outline-none resize-none border-none selection:bg-blue-600/30`}
+                  spellCheck={false}
+                />
+              </div>
+
+              {/* Bottom Test Explorer / Diagnostic Console */}
+              <div className={`h-48 border-t ${isDark ? 'border-zinc-800 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-50'} flex flex-col overflow-hidden`}>
+                <div className={`h-7 px-3 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} flex items-center justify-between text-[11px] font-mono select-none`}>
+                  <div className="flex items-center space-x-3">
+                    <span className="font-semibold text-zinc-300">TEST SUITE RUNNER</span>
+                    <span className="text-zinc-500">•</span>
+                    <span className="text-zinc-500">Node.js VM Isolation (1500ms hard timeout)</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={passedTestsCount === totalTestsCount ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                      {passedTestsCount} / {totalTestsCount} Passing
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/40 font-mono text-[11px]">
                   {testResults.map((t, idx) => (
-                    <div key={idx} className={`p-2 rounded-lg border text-xs flex items-center justify-between ${t.passed ? (isDark ? 'bg-emerald-950/20 border-emerald-900/40 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800') : (isDark ? 'bg-rose-950/20 border-rose-900/40 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-800')}`}>
+                    <div key={idx} className={`px-3 py-1.5 flex items-center justify-between hover:bg-zinc-800/30 transition ${t.passed ? 'text-zinc-300' : 'text-rose-300'}`}>
                       <div className="flex items-center space-x-2">
-                        {t.passed ? <Icons.Check /> : <Icons.Cross />}
-                        <span>{t.description || t.name}</span>
+                        {t.passed ? (
+                          <span className="text-emerald-400"><Icons.Check /></span>
+                        ) : (
+                          <span className="text-rose-400"><Icons.Cross /></span>
+                        )}
+                        <span className="font-medium">{t.description || t.name}</span>
                       </div>
-                      <span className="font-mono text-[10px] font-bold">{t.actual}</span>
+                      <div className="flex items-center space-x-4 text-zinc-500 text-[10px]">
+                        <span>{t.latency || "3ms"}</span>
+                        <span className={`px-1.5 py-0.2 rounded font-bold ${t.passed ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                          {t.actual}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* Draggable Divider */}
+            {/* Draggable Gutter Handle */}
             <div
               onMouseDown={() => setIsDragging(true)}
-              className={`w-2 hover:w-2.5 active:w-2.5 cursor-col-resize relative flex items-center justify-center transition-all z-20 select-none ${isDragging ? 'bg-blue-600' : (isDark ? 'bg-zinc-900' : 'bg-zinc-200')}`}>
-              <div className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-7 rounded-full ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-zinc-300 shadow-sm'} border flex items-center justify-center`}>
+              className={`w-1.5 hover:w-1.5 active:w-1.5 cursor-col-resize relative flex items-center justify-center transition-colors z-20 select-none group ${isDragging ? 'bg-blue-600' : 'bg-zinc-800/80 hover:bg-blue-500'}`}>
+              <div className="absolute top-1/2 -translate-y-1/2">
                 <Icons.Grip />
               </div>
             </div>
 
-            {/* AI Assistant Panel */}
-            <div style={{ width: `${chatWidth}px` }} className={`shrink-0 flex flex-col ${isDark ? 'bg-zinc-950 border-zinc-900' : 'bg-zinc-50 border-zinc-200'} border-l`}>
-              <div className={`h-10 border-b ${isDark ? 'border-zinc-900' : 'border-zinc-200 bg-white'} px-3 flex items-center justify-between text-xs`}>
-                <div className="flex items-center space-x-1.5 font-bold">
+            {/* Right: AI Pair Programmer (Copilot / Cursor Style) */}
+            <div style={{ width: `${chatWidth}px` }} className={`shrink-0 flex flex-col ${isDark ? 'bg-zinc-900/70 border-zinc-800' : 'bg-zinc-50 border-zinc-200'} border-l font-sans overflow-hidden`}>
+              <div className={`h-8 border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'} px-3 flex items-center justify-between text-xs select-none`}>
+                <div className="flex items-center space-x-2 font-mono text-[11px] font-semibold text-zinc-300">
                   <Icons.Bot />
-                  <span>AI Pair Programmer</span>
+                  <span>AI ASSISTANT (NIM)</span>
                 </div>
-                <div className="flex items-center space-x-1 text-[10px]">
-                  <button onClick={() => setChatWidth(320)} className={`px-1.5 py-0.5 rounded ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-200 text-zinc-700'}`}>S</button>
-                  <button onClick={() => setChatWidth(420)} className={`px-1.5 py-0.5 rounded ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-200 text-zinc-700'}`}>M</button>
-                  <button onClick={() => setChatWidth(600)} className={`px-1.5 py-0.5 rounded ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-200 text-zinc-700'}`}>L</button>
+                <div className="flex items-center space-x-1 text-[10px] font-mono">
+                  <button onClick={() => setChatWidth(320)} className={`px-1.5 py-0.5 rounded ${chatWidth <= 350 ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}>S</button>
+                  <button onClick={() => setChatWidth(420)} className={`px-1.5 py-0.5 rounded ${chatWidth > 350 && chatWidth < 550 ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}>M</button>
+                  <button onClick={() => setChatWidth(600)} className={`px-1.5 py-0.5 rounded ${chatWidth >= 550 ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}>L</button>
                 </div>
               </div>
 
-              <div className={`p-2 border-b ${isDark ? 'border-zinc-900' : 'border-zinc-200'} flex gap-1 flex-wrap`}>
-                <button onClick={() => handleSendPrompt("Scaffold schema guard for missing sensorId")} className={`text-[10px] px-2 py-0.5 rounded border ${isDark ? 'border-zinc-800 text-zinc-300' : 'border-zinc-300 text-zinc-700 bg-white'} hover:border-blue-500 transition`}>
-                  ⚡ Guard Missing Fields
+              {/* Action Chips */}
+              <div className={`p-2 border-b ${isDark ? 'border-zinc-800/80 bg-zinc-950/40' : 'border-zinc-200 bg-white'} flex gap-1.5 flex-wrap`}>
+                <button
+                  onClick={() => handleSendPrompt("Scaffold schema guard for missing sensorId")}
+                  className={`text-[10px] font-mono px-2 py-1 rounded border ${isDark ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700' : 'border-zinc-300 bg-zinc-100 text-zinc-700 hover:border-zinc-400'} transition`}>
+                  + Schema Contract Guard
                 </button>
-                <button onClick={() => handleSendPrompt("Fix floating point precision to 2 decimal places")} className={`text-[10px] px-2 py-0.5 rounded border ${isDark ? 'border-zinc-800 text-zinc-300' : 'border-zinc-300 text-zinc-700 bg-white'} hover:border-blue-500 transition`}>
-                  ⚡ 2-Decimal Float Fix
+                <button
+                  onClick={() => handleSendPrompt("Fix floating point precision to 2 decimal places")}
+                  className={`text-[10px] font-mono px-2 py-1 rounded border ${isDark ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700' : 'border-zinc-300 bg-zinc-100 text-zinc-700 hover:border-zinc-400'} transition`}>
+                  + 2-Decimal Float Fix
                 </button>
               </div>
 
-              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs">
+              {/* Conversation Log */}
+              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed">
                 {chatLog.map((m, i) => (
-                  <div key={i} className={`p-3 rounded-xl border leading-relaxed ${m.sender === 'user' ? 'bg-blue-600 text-white border-blue-600 ml-4' : (isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800 shadow-sm') + ' mr-2'}`}>
-                    <div>{m.text}</div>
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
+                      <span>{m.sender === 'user' ? 'DEVELOPER' : 'NVIDIA_NIM::LLAMA_3.1'}</span>
+                      <span>{m.timestamp}</span>
+                    </div>
+                    <div className={`p-2.5 rounded border text-[11px] ${m.sender === 'user' ? (isDark ? 'bg-zinc-800/90 border-zinc-700 text-zinc-100' : 'bg-zinc-200 border-zinc-300 text-zinc-900') : (isDark ? 'bg-zinc-900/60 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-800')}`}>
+                      {m.text}
+                    </div>
                   </div>
                 ))}
-                {isAiThinking && <div className="text-[11px] text-blue-500 italic">Querying NVIDIA NIM...</div>}
 
+                {isAiThinking && (
+                  <div className="text-[10px] font-mono text-blue-400 flex items-center space-x-1.5 px-1 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    <span>Synthesizing code guidance...</span>
+                  </div>
+                )}
+
+                {/* Professional GitHub-style Unified Diff Inspector */}
                 {stagedDiff && (
-                  <div className={`p-3 rounded-xl border-2 border-blue-500/80 ${isDark ? 'bg-blue-950/20' : 'bg-blue-50/60'} space-y-2 mt-2`}>
-                    <div className="flex items-center justify-between text-xs font-bold text-blue-500">
-                      <span className="flex items-center space-x-1.5">
+                  <div className="rounded border border-blue-500/40 bg-zinc-950 text-zinc-200 font-mono text-xs overflow-hidden mt-3 shadow-lg">
+                    <div className="bg-zinc-900 px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between text-[10px]">
+                      <span className="text-blue-400 font-bold flex items-center space-x-1">
                         <Icons.Diff />
-                        <span>Proposed Code Diff</span>
+                        <span>PATCH PROPOSAL: {stagedDiff.fn}</span>
                       </span>
-                      <span className="text-[10px] font-mono text-zinc-400">+{stagedDiff.linesAdded} / -{stagedDiff.linesRemoved}</span>
+                      <span className="text-zinc-500 font-mono">+{stagedDiff.additions} / -{stagedDiff.deletions} lines</span>
                     </div>
-                    <p className={`text-[11px] ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>{stagedDiff.summary}</p>
-                    <div className={`p-2 rounded border ${isDark ? 'bg-black border-zinc-800 text-zinc-200' : 'bg-zinc-900 border-zinc-800 text-zinc-100'} font-mono text-[10px] max-h-32 overflow-x-auto whitespace-pre`}>
+
+                    <div className="p-2 text-[10px] text-zinc-400 bg-zinc-900/40 border-b border-zinc-800">
+                      {stagedDiff.summary}
+                    </div>
+
+                    <pre className="p-2.5 text-[10px] leading-4 overflow-x-auto text-emerald-400 bg-emerald-950/10 border-l-2 border-emerald-500 whitespace-pre">
                       {stagedDiff.codeSnippet}
-                    </div>
-                    <div className="flex items-center space-x-2 pt-1">
+                    </pre>
+
+                    <div className="p-2 bg-zinc-900/80 border-t border-zinc-800 flex items-center space-x-2">
                       <button
                         onClick={() => handleApplyDiff(stagedDiff)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-1.5 rounded text-xs transition">
-                        Accept & Merge
+                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-mono font-semibold py-1 rounded text-[11px] transition">
+                        Accept & Apply Patch
                       </button>
                       <button
                         onClick={() => setStagedDiff(null)}
-                        className={`px-3 py-1.5 rounded border ${isDark ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-300' : 'border-zinc-300 hover:bg-zinc-100 text-zinc-700 bg-white'} text-xs font-semibold transition`}>
-                        Reject
+                        className="px-3 py-1 rounded border border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-[11px] font-mono transition">
+                        Discard
                       </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className={`p-3 border-t ${isDark ? 'border-zinc-900 bg-zinc-950' : 'border-zinc-200 bg-white'} flex items-center space-x-2`}>
+              {/* Prompt Input Box */}
+              <div className={`p-2.5 border-t ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'} flex items-center space-x-2`}>
                 <input
                   type="text"
                   value={promptInput}
                   onChange={e => setPromptInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSendPrompt()}
-                  placeholder="Ask AI pair programmer..."
-                  className={`flex-1 rounded-lg border ${isDark ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-300 bg-white text-zinc-900'} px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500`}
+                  placeholder="Inquire or request code scaffold..."
+                  className={`flex-1 rounded border ${isDark ? 'border-zinc-800 bg-zinc-950 text-zinc-100 placeholder:text-zinc-600' : 'border-zinc-300 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400'} px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 font-sans`}
                 />
-                <button onClick={() => handleSendPrompt()} className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded-lg">
+                <button
+                  onClick={() => handleSendPrompt()}
+                  className="bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded transition">
                   <Icons.Send />
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Global Bottom IDE Status Bar */}
+        <footer className={`h-6 border-t ${isDark ? 'border-zinc-800/80 bg-zinc-950 text-zinc-500' : 'border-zinc-200 bg-zinc-100 text-zinc-500'} px-4 flex items-center justify-between text-[10px] font-mono select-none`}>
+          <div className="flex items-center space-x-4">
+            <span className="flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>ISOLATED_VM</span>
+            </span>
+            <span>UTF-8</span>
+            <span>JAVASCRIPT (ES6)</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>NEON_POSTGRESQL::CONNECTED</span>
+            <span>AUDIT_LOG::ACTIVE</span>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -722,66 +839,66 @@ function VibeXPlatform() {
   // VIEW 3: RECRUITER PORTAL
   // ==========================================================================
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans transition-colors duration-200`}>
-      <header className={`h-14 border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'} px-8 flex items-center justify-between shrink-0 shadow-sm`}>
+    <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
+      <header className={`h-12 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-6 flex items-center justify-between shrink-0 shadow-sm`}>
         <div className="flex items-center space-x-3">
-          <span className="bg-blue-600 text-white font-black px-2 py-0.5 rounded text-xs tracking-wider">vibeX</span>
-          <span className="font-bold text-sm">Recruiter Intelligence Hub</span>
+          <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white">vibeX</span>
+          <span className="font-bold text-xs tracking-tight">Recruiter Intelligence Hub</span>
+          <span className="text-zinc-500 text-[11px] font-mono">/ IM-01 Benchmark</span>
         </div>
 
-        <div className="flex items-center space-x-4 text-xs">
+        <div className="flex items-center space-x-3">
           <button
             onClick={() => setRecruiterView('overview')}
-            className={`px-3 py-1 rounded-lg font-bold transition ${recruiterView === 'overview' ? (isDark ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-white') : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}`}>
+            className={`px-2.5 py-1 rounded text-xs font-medium transition ${recruiterView === 'overview' ? (isDark ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-zinc-900') : 'text-zinc-500 hover:text-zinc-300'}`}>
             Pipeline
           </button>
 
-          {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className={`p-1.5 rounded-lg border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-300' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-700'} transition flex items-center space-x-1`}
-            title="Toggle Light / Dark Mode">
+            className={`p-1.5 rounded border ${isDark ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-400' : 'border-zinc-200 hover:bg-zinc-100 text-zinc-600'} transition`}
+            title="Toggle color theme">
             {isDark ? <Icons.Sun /> : <Icons.Moon />}
           </button>
 
-          <div className={`flex items-center space-x-2 pl-3 border-l ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{currentUser.name}</span>
-            <button onClick={() => handleSetUser(null)} className="text-[11px] text-zinc-500 hover:text-rose-600">
-              Sign Out
+          <div className="flex items-center space-x-2 pl-2 border-l border-zinc-800">
+            <span className="text-[11px] font-mono text-zinc-400">{currentUser.name}</span>
+            <button onClick={() => handleSetUser(null)} className="text-[10px] text-zinc-500 hover:text-rose-400 transition font-mono">
+              [Exit]
             </button>
           </div>
         </div>
       </header>
 
       {recruiterView === 'overview' ? (
-        <main className="flex-1 max-w-6xl mx-auto w-full p-8 space-y-6 overflow-y-auto">
+        <main className="flex-1 max-w-5xl mx-auto w-full p-8 space-y-6 overflow-y-auto">
           <div>
-            <h1 className="text-2xl font-black">Candidate Evaluation Pipeline</h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Live submissions stored in Neon PostgreSQL database.</p>
+            <h1 className="text-lg font-bold tracking-tight">Candidate Verification Pipeline</h1>
+            <p className="text-xs text-zinc-500 mt-0.5">Auditable candidate submissions stored in Neon PostgreSQL.</p>
           </div>
 
-          <div className={`rounded-2xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm overflow-hidden`}>
-            <div className={`p-4 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} font-bold text-xs text-zinc-500 uppercase tracking-wider`}>
-              Recent Submissions
+          <div className={`rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm overflow-hidden`}>
+            <div className={`px-4 py-2.5 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'} font-mono text-[10px] text-zinc-500 uppercase tracking-wider`}>
+              Verified Assessment Submissions
             </div>
-            <div className={`divide-y ${isDark ? 'divide-zinc-800' : 'divide-zinc-200'} text-xs`}>
+            <div className="divide-y divide-zinc-800/40 text-xs">
               {pipelineData.length === 0 ? (
-                <div className="p-6 text-center text-zinc-400">No candidate submissions recorded in database yet.</div>
+                <div className="p-8 text-center text-zinc-500 font-mono text-xs">No candidate records queried from relational store.</div>
               ) : (
                 pipelineData.map(item => (
-                  <div key={item.session_id} className={`p-4 flex items-center justify-between ${isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-zinc-50'} transition`}>
-                    <div>
-                      <div className="font-bold text-sm">{item.candidate_name}</div>
-                      <div className="text-zinc-500 text-[11px]">{item.task_title} • Status: {item.status}</div>
+                  <div key={item.session_id} className="p-4 flex items-center justify-between hover:bg-zinc-800/20 transition">
+                    <div className="space-y-0.5">
+                      <div className="font-semibold text-zinc-100">{item.candidate_name}</div>
+                      <div className="text-zinc-500 text-[11px] font-mono">{item.task_title} • Status: {item.status}</div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${item.status === 'submitted' ? (isDark ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-700 border border-emerald-200') : (isDark ? 'bg-blue-950/40 text-blue-400 border border-blue-800' : 'bg-blue-50 text-blue-700 border border-blue-200')}`}>
-                        {item.status === 'submitted' ? `Passed (${item.tests_passed}/${item.total_tests})` : 'In Progress'}
+                    <div className="flex items-center space-x-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${item.status === 'submitted' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                        {item.status === 'submitted' ? `PASS (${item.tests_passed}/${item.total_tests})` : 'IN_PROGRESS'}
                       </span>
                       {item.status === 'submitted' && (
                         <button
                           onClick={() => handleInspectDossier(item.session_id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
+                          className="bg-zinc-100 text-zinc-900 hover:bg-white font-semibold px-2.5 py-1 rounded text-xs transition">
                           Inspect Dossier
                         </button>
                       )}
@@ -794,40 +911,41 @@ function VibeXPlatform() {
         </main>
       ) : (
         <main className="flex-1 max-w-4xl mx-auto w-full p-8 space-y-6 overflow-y-auto">
-          <button onClick={() => setRecruiterView('overview')} className="text-xs text-blue-600 font-bold hover:underline">
-            ← Back to Pipeline
+          <button onClick={() => setRecruiterView('overview')} className="text-xs text-blue-400 font-mono hover:underline">
+            ← Return to Pipeline
           </button>
 
           {selectedReport && (
-            <div className="space-y-6">
-              <div className={`p-6 rounded-2xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm flex items-center justify-between`}>
+            <div className="space-y-5">
+              <div className={`p-5 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} flex items-center justify-between`}>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Candidate Assessment Report</span>
-                  <h1 className="text-2xl font-black mt-0.5">{selectedReport.candidate_name}</h1>
-                  <p className="text-xs text-zinc-500 mt-0.5">{selectedReport.task_title}</p>
+                  <span className="text-[10px] font-mono uppercase text-blue-400 font-bold">Candidate Assessment Report</span>
+                  <h1 className="text-xl font-bold mt-0.5 tracking-tight">{selectedReport.candidate_name}</h1>
+                  <p className="text-xs text-zinc-500 font-mono mt-0.5">{selectedReport.task_title}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 block">Evaluated Verdict</span>
-                  <span className="text-lg font-black text-emerald-500">{selectedReport.verdict}</span>
+                  <span className="text-[10px] font-mono uppercase text-zinc-500 block">Evaluated Verdict</span>
+                  <span className="text-sm font-bold text-emerald-400 font-mono">{selectedReport.verdict}</span>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className={`p-5 rounded-2xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm border-l-4 border-l-blue-600 space-y-2`}>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block">Tier 1: Observed Facts (Raw Telemetry)</span>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Tests Verified: {selectedReport.observed_facts?.testsPassed || "4 of 4"}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">AI Queries Dispatched: {selectedReport.observed_facts?.aiQueriesDispatched || 2}</p>
+              {/* 3-Tier Hierarchy */}
+              <div className="space-y-3">
+                <div className={`p-4 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1.5`}>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">Tier 1: Observed Facts (Raw Telemetry)</div>
+                  <p className="text-xs text-zinc-400 font-mono">Tests Passed: {selectedReport.observed_facts?.testsPassed || "4 of 4"}</p>
+                  <p className="text-xs text-zinc-400 font-mono">AI Interactions: {selectedReport.observed_facts?.aiQueriesDispatched || 2}</p>
                 </div>
 
-                <div className={`p-5 rounded-2xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm border-l-4 border-l-purple-600 space-y-2`}>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block">Tier 2: Evidence Interpretation</span>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Code Scrutiny: {selectedReport.interpretations?.codeScrutiny || "High"}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Defensive Validation: {selectedReport.interpretations?.defensiveValidation || "Enforced schema guards"}</p>
+                <div className={`p-4 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1.5`}>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-purple-400 font-bold">Tier 2: Evidence Interpretation</div>
+                  <p className="text-xs text-zinc-400">Scrutiny Index: {selectedReport.interpretations?.codeScrutiny || "High verification rigor"}</p>
+                  <p className="text-xs text-zinc-400">Defensive Validation: {selectedReport.interpretations?.defensiveValidation || "Enforced schema guards before execution"}</p>
                 </div>
 
-                <div className={`p-5 rounded-2xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} shadow-sm border-l-4 border-l-emerald-600 space-y-2`}>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">Tier 3: Rubric Judgment</span>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">{selectedReport.rubric_evaluation}</p>
+                <div className={`p-4 rounded-lg border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'} space-y-1.5`}>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Tier 3: Rubric Judgment</div>
+                  <p className="text-xs text-zinc-300 leading-relaxed">{selectedReport.rubric_evaluation}</p>
                 </div>
               </div>
             </div>

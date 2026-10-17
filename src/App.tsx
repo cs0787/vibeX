@@ -68,13 +68,11 @@ const Icons = {
 function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (codeSnippet: string) => void }) {
   if (!text) return null;
 
-  // Split out code blocks first
   const parts = text.split(/(```[\s\S]*?```)/g);
 
   return (
     <div className="space-y-2 text-[11px] leading-relaxed select-text">
       {parts.map((part, pIdx) => {
-        // Render Code Block with Stage Patch Button
         if (part.startsWith('```')) {
           const lines = part.slice(3, -3).trim().split('\n');
           const lang = lines[0].match(/^[a-zA-Z]+/)?.[0] || 'javascript';
@@ -100,8 +98,7 @@ function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (
           );
         }
 
-        // Reconstruct line-breaks if headers or bullet points were collapsed into single-line strings
-        let normalized = part
+        const normalized = part
           .replace(/\\n/g, '\n')
           .replace(/\s*(###\s*[^#*]+)/g, '\n$1\n')
           .replace(/\s*(\*\s+[^*#]+)/g, '\n$1');
@@ -111,7 +108,6 @@ function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (
         return (
           <div key={pIdx} className="space-y-1.5">
             {lines.map((line, lIdx) => {
-              // Section Header (###)
               if (line.startsWith('###')) {
                 const heading = line.replace(/^###\s*/, '').trim();
                 return (
@@ -122,7 +118,6 @@ function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (
                 );
               }
 
-              // Bullet Item (* or -)
               if (line.startsWith('*') || line.startsWith('-')) {
                 const content = line.replace(/^(\*|-)\s*/, '').trim();
                 return (
@@ -135,7 +130,6 @@ function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (
                 );
               }
 
-              // Regular paragraph line
               return (
                 <p key={lIdx} className="text-zinc-300 leading-relaxed">
                   {renderInlineTokens(line)}
@@ -227,7 +221,6 @@ export default function App() {
 }
 
 function VibeXPlatform() {
-  // 1. Theme Configuration
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('vibe_theme') as 'light' | 'dark') || 'dark';
   });
@@ -238,7 +231,6 @@ function VibeXPlatform() {
     localStorage.setItem('vibe_theme', next);
   };
 
-  // 2. Authentication State
   const [currentUser, setCurrentUser] = useState<User null |>(() => {
     const saved = localStorage.getItem('vibe_user');
     return saved ? JSON.parse(saved) : null;
@@ -252,31 +244,27 @@ function VibeXPlatform() {
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // 3. Navigation & Panels
   const [candidateView, setCandidateView] = useState<'home' | 'workspace'>('home');
   const [recruiterView, setRecruiterView] = useState<'overview' | 'dossier'>('overview');
   const [isLaunching, setIsLaunching] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string>('session-live-01');
   const [isSpecOpen, setIsSpecOpen] = useState(true);
 
-  // 4. Recruiter Pipeline State
   const [pipelineData, setPipelineData] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-  // 5. Code Editor & Test State
   const [code, setCode] = useState(DEFAULT_TASK.starterCode);
   const [lastTestedCode, setLastTestedCode] = useState<string | null>(DEFAULT_TASK.starterCode);
   const [isExecuting, setIsExecuting] = useState(false);
   const [testResults, setTestResults] = useState<any[]>(DEFAULT_TASK.tests);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // 6. CHAT BOX CONTROLS & DEDICATED SLIDERS
-  const [chatWidth, setChatWidth] = useState<number>(420); // Chat width range slider
-  const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2); // 1 = Socratic, 2 = Balanced, 3 = Pair
+  // Sliders and Layout Controls
+  const [chatWidth, setChatWidth] = useState<number>(420);
+  const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement null |>(null);
 
-  // 7. Chat Logs & Staged Patches
   const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string; timestamp: string }[]>([
     {
       sender: 'ai',
@@ -298,7 +286,6 @@ function VibeXPlatform() {
     else localStorage.removeItem('vibe_user');
   };
 
-  // Draggable slider divider handler
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !containerRef.current) return;
     const bounds = containerRef.current.getBoundingClientRect();
@@ -330,7 +317,6 @@ function VibeXPlatform() {
     }
   }, [currentUser, recruiterView]);
 
-  // Auth Submit
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -353,7 +339,6 @@ function VibeXPlatform() {
     }
   };
 
-  // Launch Workspace
   const handleStartAssessment = async () => {
     setIsLaunching(true);
     try {
@@ -380,7 +365,6 @@ function VibeXPlatform() {
     }
   };
 
-  // Run Test Suite
   const handleRunTests = async () => {
     setIsExecuting(true);
     try {
@@ -396,7 +380,6 @@ function VibeXPlatform() {
     }
   };
 
-  // Extract Code for Staged Patch
   const stageCodeSnippet = (snippet: string) => {
     const fnMatch = snippet.match(/function\s+(\w+)/);
     const fnName = fnMatch ? fnMatch[1] : "telemetryProcessor";
@@ -409,7 +392,6 @@ function VibeXPlatform() {
     });
   };
 
-  // Dispatch Query to NVIDIA NIM / Socratic Coach
   const handleSendPrompt = async (explicitPrompt?: string) => {
     const q = explicitPrompt || promptInput;
     if (!q.trim() || isAiThinking) return;
@@ -421,7 +403,6 @@ function VibeXPlatform() {
 
     const failed = testResults.filter(t => !t.passed).map(t => t.id);
 
-    // Apply Assistance Level constraints
     let contextualQuery = q;
     if (aiAssistanceLevel === 1) {
       contextualQuery = `[SOCRATIC MODE: Provide conceptual guidance and edge-case clues only. Do not write code.] ${q}`;
@@ -434,7 +415,6 @@ function VibeXPlatform() {
     const aiTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setChatLog(prev => [...prev, { sender: 'ai', text: res.guidance, timestamp: aiTime }]);
 
-    // Automatically stage patch if model provided a code block and level >= 2
     const codeMatch = res.guidance.match(/```(?:javascript|js)?([\s\S]*?)```/);
     if (codeMatch && codeMatch[1] && aiAssistanceLevel >= 2) {
       stageCodeSnippet(codeMatch[1]);
@@ -443,7 +423,6 @@ function VibeXPlatform() {
     setIsAiThinking(false);
   };
 
-  // Apply Staged Patch into Code Editor Buffer
   const handleApplyDiff = (diff: any) => {
     setCode(prev => {
       const match = diff.codeSnippet.match(/function\s+(\w+)/);
@@ -456,7 +435,6 @@ function VibeXPlatform() {
     setStagedDiff(null);
   };
 
-  // Submit Assessment
   const handleSubmitAssessment = async () => {
     try {
       await vibeXApi.submitAssessment(activeSessionId, code);
@@ -466,7 +444,6 @@ function VibeXPlatform() {
     }
   };
 
-  // View Candidate Dossier
   const handleInspectDossier = async (sessionId: string) => {
     try {
       const res = await vibeXApi.getReport(sessionId);
@@ -480,9 +457,7 @@ function VibeXPlatform() {
   const lineCount = code.split('\n').length;
   const lineNumbers = Array.from({ length: Math.max(lineCount, 15) }, (_, i) => i + 1);
 
-  // ==========================================================================
-  // VIEW 1: AUTHENTICATION SCREEN
-  // ==========================================================================
+  // Auth Screen
   if (!currentUser) {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col justify-between font-sans antialiased`}>
@@ -588,13 +563,10 @@ function VibeXPlatform() {
     );
   }
 
-  // ==========================================================================
-  // VIEW 2: CANDIDATE STUDIO
-  // ==========================================================================
+  // Candidate View
   if (currentUser.role === 'candidate') {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
-        {/* Navigation Bar */}
         <header className={`h-11 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-4 flex items-center justify-between shrink-0 select-none z-10`}>
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
@@ -678,7 +650,7 @@ function VibeXPlatform() {
           </main>
         ) : (
           <div ref={containerRef} className="flex-1 flex overflow-hidden relative select-auto">
-            {/* Left Specification Drawer */}
+            {/* Task Spec */}
             {isSpecOpen && (
               <div className="w-72 shrink-0 border-r border-zinc-800 bg-zinc-900/40 flex flex-col overflow-hidden">
                 <div className="h-8 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400">
@@ -760,7 +732,6 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* Code Input Buffer with Line Gutter */}
               <div className="flex-1 flex overflow-hidden font-mono text-[12px] leading-5 relative">
                 <div className="w-10 shrink-0 select-none text-right pr-3 pt-3 bg-zinc-950 text-zinc-600 border-zinc-900 border-r font-mono text-[11px]">
                   {lineNumbers.map(n => (
@@ -776,7 +747,7 @@ function VibeXPlatform() {
                 />
               </div>
 
-              {/* Sandbox Test Explorer */}
+              {/* Bottom Test Suite Runner */}
               <div className="h-48 border-t border-zinc-800 bg-zinc-900/60 flex flex-col overflow-hidden">
                 <div className="h-7 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono select-none">
                   <div className="flex items-center space-x-3">
@@ -812,7 +783,7 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* Draggable Gutter Handle Slider */}
+            {/* Draggable Divider Handle */}
             <div
               onMouseDown={() => setIsDragging(true)}
               className={`w-1.5 hover:w-1.5 active:w-1.5 cursor-col-resize relative flex items-center justify-center transition-colors z-20 select-none group ${isDragging ? 'bg-blue-600' : 'bg-zinc-800/80 hover:bg-blue-500'}`}>
@@ -821,19 +792,15 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* ======================================================== */}
-            {/* RIGHT PANEL: AI PAIR PROGRAMMER WITH CHAT BOX SLIDERS   */}
-            {/* ======================================================== */}
+            {/* AI Assistant Panel */}
             <div style={{ width: `${chatWidth}px` }} className="shrink-0 flex flex-col bg-zinc-900/70 border-zinc-800 border-l font-sans overflow-hidden">
-              
-              {/* SLIDER 1: PANEL WIDTH SLIDER IN CHAT HEADER */}
+              {/* Header with Width Slider */}
               <div className="h-8 border-b border-zinc-800 bg-zinc-900 px-3 flex items-center justify-between text-xs select-none">
                 <div className="flex items-center space-x-2 font-mono text-[11px] font-semibold text-zinc-300">
                   <Icons.Bot />
                   <span>AI ASSISTANT (NIM)</span>
                 </div>
 
-                {/* Range Slider for Chat Box Width */}
                 <div className="flex items-center space-x-2 bg-zinc-950/60 px-2 py-0.5 rounded border border-zinc-800">
                   <span className="text-[10px] font-mono text-zinc-500">Width</span>
                   <input
@@ -850,7 +817,7 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* SLIDER 2: 3-STOP ASSISTANCE MODE SLIDER */}
+              {/* Mode Slider Toolbar */}
               <div className="px-3 py-1.5 border-b border-zinc-800/80 bg-zinc-950/80 flex items-center justify-between text-[10px] font-mono select-none">
                 <span className="text-zinc-400 flex items-center space-x-1">
                   <Icons.Sliders />
@@ -859,7 +826,6 @@ function VibeXPlatform() {
 
                 <div className="flex items-center space-x-2">
                   <span className={`transition ${aiAssistanceLevel === 1 ? 'text-amber-400 font-bold' : 'text-zinc-600'}`}>Socratic</span>
-                  
                   <input
                     type="range"
                     min="1"
@@ -870,7 +836,6 @@ function VibeXPlatform() {
                     className="w-14 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     title="1: Socratic Hints | 2: Balanced Architect | 3: Full Code Diffs"
                   />
-
                   <span className={`transition ${aiAssistanceLevel === 3 ? 'text-emerald-400 font-bold' : 'text-zinc-600'}`}>Pair Diffs</span>
                 </div>
               </div>
@@ -889,7 +854,7 @@ function VibeXPlatform() {
                 </button>
               </div>
 
-              {/* Chat Message Scrollable Container with Custom Slider */}
+              {/* Message Feed */}
               <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
                 {chatLog.map((m, i) => (
                   <div key={i} className="space-y-1">
@@ -910,7 +875,7 @@ function VibeXPlatform() {
                   </div>
                 )}
 
-                {/* Staged Diff Proposal Card */}
+                {/* Staged Diff Inspector */}
                 {stagedDiff && (
                   <div className="rounded border border-blue-500/40 bg-zinc-950 text-zinc-200 font-mono text-xs overflow-hidden mt-3 shadow-lg">
                     <div className="bg-zinc-900 px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between text-[10px]">
@@ -925,7 +890,7 @@ function VibeXPlatform() {
                       {stagedDiff.summary}
                     </div>
 
-                    <pre className="p-2.5 text-[10px] leading-4 overflow-x-auto text-emerald-400 bg-emerald-950/10 border-l-2 border-emerald-500 whitespace-pre">
+                    <pre className="p-2.5 text-[10px] leading-4 overflow-x-auto text-emerald-400 bg-emerald-950/10 border-l-2 border-emerald-500 whitespace-pre font-mono">
                       {stagedDiff.codeSnippet}
                     </pre>
 
@@ -945,7 +910,7 @@ function VibeXPlatform() {
                 )}
               </div>
 
-              {/* Chat Input Bar */}
+              {/* Chat Input */}
               <div className="p-2.5 border-t border-zinc-800 bg-zinc-900 flex items-center space-x-2">
                 <input
                   type="text"
@@ -965,7 +930,6 @@ function VibeXPlatform() {
           </div>
         )}
 
-        {/* Global IDE Status Footer */}
         <footer className="h-6 border-t border-zinc-800/80 bg-zinc-950 text-zinc-500 px-4 flex items-center justify-between text-[10px] font-mono select-none">
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1">
@@ -984,9 +948,7 @@ function VibeXPlatform() {
     );
   }
 
-  // ==========================================================================
-  // VIEW 3: RECRUITER TALENT HUB
-  // ==========================================================================
+  // Recruiter View
   return (
     <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
       <header className={`h-12 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-6 flex items-center justify-between shrink-0 shadow-sm`}>
@@ -1075,7 +1037,6 @@ function VibeXPlatform() {
                 </div>
               </div>
 
-              {/* 3-Tier Dossier Breakdown */}
               <div className="space-y-3">
                 <div className="p-4 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">Tier 1: Observed Facts (Raw Telemetry)</div>

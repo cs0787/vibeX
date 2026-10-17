@@ -566,7 +566,7 @@ function VibeXPlatform() {
   // Candidate View
   if (currentUser.role === 'candidate') {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
+      <div className={`h-screen overflow-hidden ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
         <header className={`h-11 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-4 flex items-center justify-between shrink-0 select-none z-10`}>
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
@@ -649,7 +649,7 @@ function VibeXPlatform() {
             </div>
           </main>
         ) : (
-          <div ref={containerRef} className="flex-1 flex overflow-hidden relative select-auto">
+          <div ref={containerRef} className="flex-1 min-h-0 flex overflow-hidden relative select-auto">
             {/* Task Spec */}
             {isSpecOpen && (
               <div className="w-72 shrink-0 border-r border-zinc-800 bg-zinc-900/40 flex flex-col overflow-hidden">
@@ -855,7 +855,7 @@ function VibeXPlatform() {
               </div>
 
               {/* Message Feed */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
+              <div className="flex-1 min-h-0 p-3 overflow-y-auto overscroll-contain space-y-3 text-xs leading-relaxed [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
                 {chatLog.map((m, i) => (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
@@ -911,7 +911,7 @@ function VibeXPlatform() {
               </div>
 
               {/* Chat Input */}
-              <div className="p-2.5 border-t border-zinc-800 bg-zinc-900 flex items-center space-x-2">
+              <div className="shrink-0 p-2.5 border-t border-zinc-800 bg-zinc-900 flex items-center space-x-2">
                 <input
                   type="text"
                   value={promptInput}

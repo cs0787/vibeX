@@ -231,7 +231,7 @@ function VibeXPlatform() {
     localStorage.setItem('vibe_theme', next);
   };
 
-  const [currentUser, setCurrentUser] = useState<User null |>(() => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('vibe_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -263,7 +263,7 @@ function VibeXPlatform() {
   const [chatWidth, setChatWidth] = useState<number>(420);
   const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const containerRef = useRef<HTMLDivElement null |>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string; timestamp: string }[]>([
     {

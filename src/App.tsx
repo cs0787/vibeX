@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { vibeXApi, User } from './services/api';
 
+// ============================================================================
+// ERROR BOUNDARY
+// ============================================================================
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error("Boundary error:", error, info); }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error("Workspace boundary error:", error, info); }
   render() {
     if (this.state.hasError) {
       return (
@@ -15,10 +18,16 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-4">
             <div className="flex items-center space-x-2 text-rose-400 font-bold">
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              <span>Workspace Recovered</span>
+              <span>Workspace Session Recovered</span>
             </div>
-            <pre className="text-zinc-400 bg-zinc-950 p-3 rounded border border-zinc-800 overflow-x-auto text-[11px]">{this.state.error?.message}</pre>
-            <button onClick={() => window.location.reload()} className="w-full bg-zinc-100 text-zinc-900 font-bold py-2 rounded text-xs hover:bg-white transition">Reload Environment</button>
+            <pre className="text-zinc-400 bg-zinc-950 p-3 rounded border border-zinc-800 overflow-x-auto text-[11px]">
+              {this.state.error?.message}
+            </pre>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-zinc-100 text-zinc-900 font-bold py-2 rounded text-xs hover:bg-white transition">
+              Reload Environment
+            </button>
           </div>
         </div>
       );
@@ -27,7 +36,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-// Minimalist, high-precision SVG icons
+// ============================================================================
+// SYSTEM SVG ICONS
+// ============================================================================
 const Icons = {
   Sun: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
   Moon: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
@@ -52,22 +63,26 @@ const Icons = {
 };
 
 // ============================================================================
-// STRUCTURED MESSAGE FORMATTER (Markdown, Headers & Clean Spacing)
+// AUTO-RECONSTRUCTING MARKDOWN PARSER COMPONENT
 // ============================================================================
 function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (codeSnippet: string) => void }) {
+  if (!text) return null;
+
+  // Split out code blocks first
   const parts = text.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div className="space-y-2 text-[11px] leading-relaxed">
-      {parts.map((part, index) => {
+    <div className="space-y-2 text-[11px] leading-relaxed select-text">
+      {parts.map((part, pIdx) => {
+        // Render Code Block with Stage Patch Button
         if (part.startsWith('```')) {
           const lines = part.slice(3, -3).trim().split('\n');
           const lang = lines[0].match(/^[a-zA-Z]+/)?.[0] || 'javascript';
           const codeBody = lines[0].match(/^[a-zA-Z]+$/) ? lines.slice(1).join('\n') : lines.join('\n');
 
           return (
-            <div key={index} className="my-2 rounded border border-zinc-800 bg-zinc-950 overflow-hidden font-mono text-[10px]">
-              <div className="bg-zinc-900 px-2.5 py-1 flex items-center justify-between border-b border-zinc-800 text-zinc-400">
+            <div key={pIdx} className="my-2 rounded border border-zinc-800 bg-zinc-950 overflow-hidden font-mono text-[10px]">
+              <div className="bg-zinc-900/90 px-2.5 py-1 flex items-center justify-between border-b border-zinc-800 text-zinc-400">
                 <span className="uppercase text-[9px] font-bold tracking-wider">{lang}</span>
                 {onStageCode && (
                   <button
@@ -78,41 +93,52 @@ function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (
                   </button>
                 )}
               </div>
-              <pre className="p-2.5 overflow-x-auto text-emerald-400 bg-zinc-950 leading-normal">
+              <pre className="p-2.5 overflow-x-auto text-emerald-400 bg-zinc-950 leading-normal whitespace-pre font-mono">
                 {codeBody}
               </pre>
             </div>
           );
         }
 
-        const textLines = part.split('\n');
+        // Reconstruct line-breaks if headers or bullet points were collapsed into single-line strings
+        let normalized = part
+          .replace(/\\n/g, '\n')
+          .replace(/\s*(###\s*[^#*]+)/g, '\n$1\n')
+          .replace(/\s*(\*\s+[^*#]+)/g, '\n$1');
+
+        const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+
         return (
-          <div key={index} className="space-y-1">
-            {textLines.map((line, lIdx) => {
-              const trimmed = line.trim();
-              if (!trimmed) return null;
-
-              if (trimmed.startsWith('### ')) {
+          <div key={pIdx} className="space-y-1.5">
+            {lines.map((line, lIdx) => {
+              // Section Header (###)
+              if (line.startsWith('###')) {
+                const heading = line.replace(/^###\s*/, '').trim();
                 return (
-                  <div key={lIdx} className="font-mono text-[11px] font-bold text-zinc-100 mt-2.5 mb-1 flex items-center space-x-1">
-                    <span>{trimmed.replace('### ', '')}</span>
+                  <div key={lIdx} className="font-mono text-[11px] font-bold text-zinc-100 pt-2 pb-0.5 border-b border-zinc-800/80 flex items-center space-x-1.5">
+                    <span className="text-blue-400">#</span>
+                    <span>{heading}</span>
                   </div>
                 );
               }
 
-              if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || /^\d+\.\s/.test(trimmed)) {
-                const bulletText = trimmed.replace(/^(\*|-|\d+\.)\s*/, '');
+              // Bullet Item (* or -)
+              if (line.startsWith('*') || line.startsWith('-')) {
+                const content = line.replace(/^(\*|-)\s*/, '').trim();
                 return (
-                  <div key={lIdx} className="flex items-start space-x-1.5 pl-1">
-                    <span className="text-blue-400 font-bold leading-tight">•</span>
-                    <span className="text-zinc-300">{renderInline(bulletText)}</span>
+                  <div key={lIdx} className="flex items-start space-x-2 pl-1.5 py-0.5">
+                    <span className="text-blue-400 font-bold leading-none mt-1">•</span>
+                    <span className="text-zinc-300 leading-snug">
+                      {renderInlineTokens(content)}
+                    </span>
                   </div>
                 );
               }
 
+              // Regular paragraph line
               return (
-                <p key={lIdx} className="text-zinc-300 leading-normal">
-                  {renderInline(trimmed)}
+                <p key={lIdx} className="text-zinc-300 leading-relaxed">
+                  {renderInlineTokens(line)}
                 </p>
               );
             })}
@@ -123,12 +149,12 @@ function FormattedMessage({ text, onStageCode }: { text: string; onStageCode?: (
   );
 }
 
-function renderInline(str: string) {
+function renderInlineTokens(str: string) {
   const tokens = str.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
   return tokens.map((t, i) => {
     if (t.startsWith('`') && t.endsWith('`')) {
       return (
-        <code key={i} className="font-mono text-[10px] bg-zinc-800 text-blue-300 px-1 py-0.5 rounded border border-zinc-700/60">
+        <code key={i} className="font-mono text-[10px] bg-zinc-800 text-blue-300 px-1 py-0.5 rounded border border-zinc-700/60 font-semibold">
           {t.slice(1, -1)}
         </code>
       );
@@ -144,6 +170,9 @@ function renderInline(str: string) {
   });
 }
 
+// ============================================================================
+// BENCHMARK TASK DEFINITION
+// ============================================================================
 const DEFAULT_TASK = {
   id: "task-iot-stream",
   title: "Real-Time Telemetry Stream Processor",
@@ -198,10 +227,18 @@ export default function App() {
 }
 
 function VibeXPlatform() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  // 1. Theme Configuration
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('vibe_theme') as 'light' | 'dark') || 'dark';
+  });
   const isDark = theme === 'dark';
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('vibe_theme', next);
+  };
 
+  // 2. Authentication State
   const [currentUser, setCurrentUser] = useState<User null |>(() => {
     const saved = localStorage.getItem('vibe_user');
     return saved ? JSON.parse(saved) : null;
@@ -215,30 +252,35 @@ function VibeXPlatform() {
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
+  // 3. Navigation & Panels
   const [candidateView, setCandidateView] = useState<'home' | 'workspace'>('home');
   const [recruiterView, setRecruiterView] = useState<'overview' | 'dossier'>('overview');
   const [isLaunching, setIsLaunching] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string>('session-live-01');
   const [isSpecOpen, setIsSpecOpen] = useState(true);
 
+  // 4. Recruiter Pipeline State
   const [pipelineData, setPipelineData] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
+  // 5. Code Editor & Test State
   const [code, setCode] = useState(DEFAULT_TASK.starterCode);
   const [lastTestedCode, setLastTestedCode] = useState<string | null>(DEFAULT_TASK.starterCode);
   const [isExecuting, setIsExecuting] = useState(false);
   const [testResults, setTestResults] = useState<any[]>(DEFAULT_TASK.tests);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const [chatWidth, setChatWidth] = useState(420);
-  const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2);
-  const [isDragging, setIsDragging] = useState(false);
+  // 6. CHAT BOX CONTROLS & DEDICATED SLIDERS
+  const [chatWidth, setChatWidth] = useState<number>(420); // Chat width range slider
+  const [aiAssistanceLevel, setAiAssistanceLevel] = useState<number>(2); // 1 = Socratic, 2 = Balanced, 3 = Pair
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement null |>(null);
 
+  // 7. Chat Logs & Staged Patches
   const [chatLog, setChatLog] = useState<{ sender: 'user' | 'ai'; text: string; timestamp: string }[]>([
     {
       sender: 'ai',
-      text: "### 🔍 Status\n* AI Pair Programmer connected via NVIDIA NIM (`meta/llama-3.1-70b-instruct`).\n\n### 💡 Mode Active\n* **Balanced Architect:** Explains edge cases, checks schema contracts, and produces staged patch proposals.",
+      text: "### 🔍 Analysis\n* AI Pair Programmer connected via NVIDIA NIM (`meta/llama-3.1-70b-instruct`).\n\n### 💡 Mode Active\n* **Balanced Architect:** Diagnosing schema guards, checking rolling statistics, and staging unified code diffs.",
       timestamp: "10:14:02"
     }
   ]);
@@ -256,6 +298,7 @@ function VibeXPlatform() {
     else localStorage.removeItem('vibe_user');
   };
 
+  // Draggable slider divider handler
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !containerRef.current) return;
     const bounds = containerRef.current.getBoundingClientRect();
@@ -287,6 +330,7 @@ function VibeXPlatform() {
     }
   }, [currentUser, recruiterView]);
 
+  // Auth Submit
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -309,6 +353,7 @@ function VibeXPlatform() {
     }
   };
 
+  // Launch Workspace
   const handleStartAssessment = async () => {
     setIsLaunching(true);
     try {
@@ -335,6 +380,7 @@ function VibeXPlatform() {
     }
   };
 
+  // Run Test Suite
   const handleRunTests = async () => {
     setIsExecuting(true);
     try {
@@ -350,18 +396,20 @@ function VibeXPlatform() {
     }
   };
 
+  // Extract Code for Staged Patch
   const stageCodeSnippet = (snippet: string) => {
     const fnMatch = snippet.match(/function\s+(\w+)/);
-    const fnName = fnMatch ? fnMatch[1] : "telemetryPatch";
+    const fnName = fnMatch ? fnMatch[1] : "telemetryProcessor";
     setStagedDiff({
       fn: fnName,
-      summary: `Staged patch for ${fnName} extracted from AI response`,
+      summary: `Staged patch proposal for ${fnName}`,
       codeSnippet: snippet.trim(),
       additions: snippet.split('\n').length,
       deletions: 1
     });
   };
 
+  // Dispatch Query to NVIDIA NIM / Socratic Coach
   const handleSendPrompt = async (explicitPrompt?: string) => {
     const q = explicitPrompt || promptInput;
     if (!q.trim() || isAiThinking) return;
@@ -372,12 +420,13 @@ function VibeXPlatform() {
     setIsAiThinking(true);
 
     const failed = testResults.filter(t => !t.passed).map(t => t.id);
-    
+
+    // Apply Assistance Level constraints
     let contextualQuery = q;
     if (aiAssistanceLevel === 1) {
-      contextualQuery = `[SOCRATIC MODE: Give conceptual hints only. DO NOT provide code solutions.] ${q}`;
+      contextualQuery = `[SOCRATIC MODE: Provide conceptual guidance and edge-case clues only. Do not write code.] ${q}`;
     } else if (aiAssistanceLevel === 3) {
-      contextualQuery = `[PAIR PROGRAMMER MODE: Provide the exact code diff inside a javascript code block.] ${q}`;
+      contextualQuery = `[PAIR PROGRAMMER MODE: Provide the exact implementation inside a javascript code block.] ${q}`;
     }
 
     const res = await vibeXApi.askCoach(activeSessionId, contextualQuery, code, failed);
@@ -385,6 +434,7 @@ function VibeXPlatform() {
     const aiTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setChatLog(prev => [...prev, { sender: 'ai', text: res.guidance, timestamp: aiTime }]);
 
+    // Automatically stage patch if model provided a code block and level >= 2
     const codeMatch = res.guidance.match(/```(?:javascript|js)?([\s\S]*?)```/);
     if (codeMatch && codeMatch[1] && aiAssistanceLevel >= 2) {
       stageCodeSnippet(codeMatch[1]);
@@ -393,6 +443,7 @@ function VibeXPlatform() {
     setIsAiThinking(false);
   };
 
+  // Apply Staged Patch into Code Editor Buffer
   const handleApplyDiff = (diff: any) => {
     setCode(prev => {
       const match = diff.codeSnippet.match(/function\s+(\w+)/);
@@ -405,6 +456,7 @@ function VibeXPlatform() {
     setStagedDiff(null);
   };
 
+  // Submit Assessment
   const handleSubmitAssessment = async () => {
     try {
       await vibeXApi.submitAssessment(activeSessionId, code);
@@ -414,6 +466,7 @@ function VibeXPlatform() {
     }
   };
 
+  // View Candidate Dossier
   const handleInspectDossier = async (sessionId: string) => {
     try {
       const res = await vibeXApi.getReport(sessionId);
@@ -427,7 +480,9 @@ function VibeXPlatform() {
   const lineCount = code.split('\n').length;
   const lineNumbers = Array.from({ length: Math.max(lineCount, 15) }, (_, i) => i + 1);
 
-  // Auth Screen
+  // ==========================================================================
+  // VIEW 1: AUTHENTICATION SCREEN
+  // ==========================================================================
   if (!currentUser) {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col justify-between font-sans antialiased`}>
@@ -533,10 +588,13 @@ function VibeXPlatform() {
     );
   }
 
-  // Candidate View
+  // ==========================================================================
+  // VIEW 2: CANDIDATE STUDIO
+  // ==========================================================================
   if (currentUser.role === 'candidate') {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
+        {/* Navigation Bar */}
         <header className={`h-11 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-4 flex items-center justify-between shrink-0 select-none z-10`}>
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
@@ -620,7 +678,7 @@ function VibeXPlatform() {
           </main>
         ) : (
           <div ref={containerRef} className="flex-1 flex overflow-hidden relative select-auto">
-            {/* Task Spec Drawer */}
+            {/* Left Specification Drawer */}
             {isSpecOpen && (
               <div className="w-72 shrink-0 border-r border-zinc-800 bg-zinc-900/40 flex flex-col overflow-hidden">
                 <div className="h-8 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400">
@@ -702,6 +760,7 @@ function VibeXPlatform() {
                 </div>
               </div>
 
+              {/* Code Input Buffer with Line Gutter */}
               <div className="flex-1 flex overflow-hidden font-mono text-[12px] leading-5 relative">
                 <div className="w-10 shrink-0 select-none text-right pr-3 pt-3 bg-zinc-950 text-zinc-600 border-zinc-900 border-r font-mono text-[11px]">
                   {lineNumbers.map(n => (
@@ -717,7 +776,7 @@ function VibeXPlatform() {
                 />
               </div>
 
-              {/* Bottom Test Suite Runner */}
+              {/* Sandbox Test Explorer */}
               <div className="h-48 border-t border-zinc-800 bg-zinc-900/60 flex flex-col overflow-hidden">
                 <div className="h-7 px-3 border-b border-zinc-800 flex items-center justify-between text-[11px] font-mono select-none">
                   <div className="flex items-center space-x-3">
@@ -753,7 +812,7 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* Draggable Divider Handle */}
+            {/* Draggable Gutter Handle Slider */}
             <div
               onMouseDown={() => setIsDragging(true)}
               className={`w-1.5 hover:w-1.5 active:w-1.5 cursor-col-resize relative flex items-center justify-center transition-colors z-20 select-none group ${isDragging ? 'bg-blue-600' : 'bg-zinc-800/80 hover:bg-blue-500'}`}>
@@ -762,40 +821,45 @@ function VibeXPlatform() {
               </div>
             </div>
 
-            {/* AI Assistant Panel */}
+            {/* ======================================================== */}
+            {/* RIGHT PANEL: AI PAIR PROGRAMMER WITH CHAT BOX SLIDERS   */}
+            {/* ======================================================== */}
             <div style={{ width: `${chatWidth}px` }} className="shrink-0 flex flex-col bg-zinc-900/70 border-zinc-800 border-l font-sans overflow-hidden">
-              {/* Header with Width Slider */}
+              
+              {/* SLIDER 1: PANEL WIDTH SLIDER IN CHAT HEADER */}
               <div className="h-8 border-b border-zinc-800 bg-zinc-900 px-3 flex items-center justify-between text-xs select-none">
                 <div className="flex items-center space-x-2 font-mono text-[11px] font-semibold text-zinc-300">
                   <Icons.Bot />
-                  <span>AI ASSISTANT</span>
+                  <span>AI ASSISTANT (NIM)</span>
                 </div>
 
+                {/* Range Slider for Chat Box Width */}
                 <div className="flex items-center space-x-2 bg-zinc-950/60 px-2 py-0.5 rounded border border-zinc-800">
                   <span className="text-[10px] font-mono text-zinc-500">Width</span>
                   <input
                     type="range"
                     min="300"
-                    max="640"
+                    max="650"
                     step="10"
                     value={chatWidth}
                     onChange={(e) => setChatWidth(Number(e.target.value))}
                     className="w-16 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                    title={`Adjust Panel Width: ${chatWidth}px`}
+                    title={`Adjust Chat Width: ${chatWidth}px`}
                   />
                   <span className="text-[10px] font-mono text-blue-400 font-bold">{chatWidth}px</span>
                 </div>
               </div>
 
-              {/* Mode Slider Toolbar */}
+              {/* SLIDER 2: 3-STOP ASSISTANCE MODE SLIDER */}
               <div className="px-3 py-1.5 border-b border-zinc-800/80 bg-zinc-950/80 flex items-center justify-between text-[10px] font-mono select-none">
                 <span className="text-zinc-400 flex items-center space-x-1">
                   <Icons.Sliders />
-                  <span>AI Mode</span>
+                  <span>AI Mode:</span>
                 </span>
 
                 <div className="flex items-center space-x-2">
                   <span className={`transition ${aiAssistanceLevel === 1 ? 'text-amber-400 font-bold' : 'text-zinc-600'}`}>Socratic</span>
+                  
                   <input
                     type="range"
                     min="1"
@@ -804,8 +868,9 @@ function VibeXPlatform() {
                     value={aiAssistanceLevel}
                     onChange={(e) => setAiAssistanceLevel(Number(e.target.value))}
                     className="w-14 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                    title="1: Socratic Hints | 2: Balanced Architect | 3: Full Pair Programmer"
+                    title="1: Socratic Hints | 2: Balanced Architect | 3: Full Code Diffs"
                   />
+
                   <span className={`transition ${aiAssistanceLevel === 3 ? 'text-emerald-400 font-bold' : 'text-zinc-600'}`}>Pair Diffs</span>
                 </div>
               </div>
@@ -824,8 +889,8 @@ function VibeXPlatform() {
                 </button>
               </div>
 
-              {/* Message Feed */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed">
+              {/* Chat Message Scrollable Container with Custom Slider */}
+              <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs leading-relaxed [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
                 {chatLog.map((m, i) => (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
@@ -845,7 +910,7 @@ function VibeXPlatform() {
                   </div>
                 )}
 
-                {/* Staged Diff Inspector */}
+                {/* Staged Diff Proposal Card */}
                 {stagedDiff && (
                   <div className="rounded border border-blue-500/40 bg-zinc-950 text-zinc-200 font-mono text-xs overflow-hidden mt-3 shadow-lg">
                     <div className="bg-zinc-900 px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between text-[10px]">
@@ -880,7 +945,7 @@ function VibeXPlatform() {
                 )}
               </div>
 
-              {/* Chat Input */}
+              {/* Chat Input Bar */}
               <div className="p-2.5 border-t border-zinc-800 bg-zinc-900 flex items-center space-x-2">
                 <input
                   type="text"
@@ -900,6 +965,7 @@ function VibeXPlatform() {
           </div>
         )}
 
+        {/* Global IDE Status Footer */}
         <footer className="h-6 border-t border-zinc-800/80 bg-zinc-950 text-zinc-500 px-4 flex items-center justify-between text-[10px] font-mono select-none">
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1">
@@ -918,10 +984,12 @@ function VibeXPlatform() {
     );
   }
 
-  // Recruiter View
+  // ==========================================================================
+  // VIEW 3: RECRUITER TALENT HUB
+  // ==========================================================================
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans text-xs antialiased">
-      <header className="h-12 border-b border-zinc-800 bg-zinc-900/90 px-6 flex items-center justify-between shrink-0 shadow-sm">
+    <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'} flex flex-col font-sans text-xs antialiased`}>
+      <header className={`h-12 border-b ${isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-white'} px-6 flex items-center justify-between shrink-0 shadow-sm`}>
         <div className="flex items-center space-x-3">
           <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white">vibeX</span>
           <span className="font-bold text-xs tracking-tight">Recruiter Intelligence Hub</span>
@@ -1007,6 +1075,7 @@ function VibeXPlatform() {
                 </div>
               </div>
 
+              {/* 3-Tier Dossier Breakdown */}
               <div className="space-y-3">
                 <div className="p-4 rounded-lg border bg-zinc-900/60 border-zinc-800 space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">Tier 1: Observed Facts (Raw Telemetry)</div>
